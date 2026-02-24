@@ -1,0 +1,590 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ==========================================
+// 🏫 TENANT & USERS
+// ==========================================
+
+model School {
+  id        String    @id @default(uuid())
+  name      String
+  code      String    @unique
+  address   String?
+  phone     String?
+  logoS3Key String?
+
+  users          User[]
+  students       Student[]
+  academicYears  AcademicYear[]
+  grades         Grade[]
+  subjects       Subject[]
+  exams          Exam[]
+  feeStructures  FeeStructure[]
+  invoices       Invoice[]
+  payments       Payment[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model User {
+  id              String    @id @default(uuid())
+  schoolId        String
+  school          School    @relation(fields: [schoolId], references: [id])
+
+  email           String    @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  phone           String?
+  profilePicS3Key String?
+  role            Role      @default(TEACHER)
+  isActive        Boolean   @default(true)
+
+  parentStudents  StudentParent[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  @@index([schoolId, deletedAt])
+  @@index([schoolId, role])
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  ACCOUNTANT
+  PARENT
+  STUDENT
+}
+
+// ==========================================
+// 📅 ACADEMIC STRUCTURE
+// ==========================================
+
+model AcademicYear {
+  id        String    @id @default(uuid())
+  schoolId  String
+  school    School    @relation(fields: [schoolId], references: [id])
+
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean   @default(false)
+
+  terms         Term[]
+  enrollments   Enrollment[]
+  exams         Exam[]
+  feeStructures FeeStructure[]
+  invoices      Invoice[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([schoolId, deletedAt])
+  @@index([schoolId, isCurrent])
+}
+
+model Term {
+  id             String       @id @default(uuid())
+  schoolId       String
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  name      String
+  startDate DateTime
+  endDate   DateTime
+
+  exams Exam[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([schoolId, deletedAt])
+  @@index([schoolId, academicYearId])
+}
+
+model Grade {
+  id       String @id @default(uuid())
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+
+  level    Int
+  section  String
+  stream   Stream
+  capacity Int    @default(60)
+
+  enrollments   Enrollment[]
+  gradeSubjects GradeSubject[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([schoolId, level, section, stream])
+  @@index([schoolId, deletedAt])
+}
+
+enum Stream {
+  SCIENCE
+  MANAGEMENT
+  HUMANITIES
+  EDUCATION
+}
+
+// ==========================================
+// 📚 SUBJECTS
+// ==========================================
+
+model Subject {
+  id         String @id @default(uuid())
+  schoolId   String
+  school     School @relation(fields: [schoolId], references: [id])
+
+  name       String
+  code       String
+  creditHours Int   @default(4)
+
+  hasTheory          Boolean @default(true)
+  hasPractical       Boolean @default(false)
+  theoryFullMarks    Int     @default(75)
+  practicalFullMarks Int     @default(25)
+
+  gradeSubjects GradeSubject[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([schoolId, code])
+  @@index([schoolId, deletedAt])
+}
+
+model GradeSubject {
+  id        String  @id @default(uuid())
+  schoolId  String
+  gradeId   String
+  grade     Grade   @relation(fields: [gradeId], references: [id])
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+  teacherId String?
+
+  examResults ExamResult[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([gradeId, subjectId])
+  @@index([schoolId, deletedAt])
+}
+
+// ==========================================
+// 🎓 STUDENTS & ENROLLMENT
+// ==========================================
+
+model Student {
+  id              String        @id @default(uuid())
+  schoolId        String
+  school          School        @relation(fields: [schoolId], references: [id])
+
+  registrationNo  String
+  symbolNo        String?
+  firstName       String
+  lastName        String
+  dob             DateTime
+  gender          Gender
+  phone           String?
+  address         String?
+  profilePicS3Key String?
+  status          StudentStatus @default(ACTIVE)
+
+  enrollments Enrollment[]
+  examResults ExamResult[]
+  invoices    Invoice[]
+  payments    Payment[]
+  parents     StudentParent[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([schoolId, registrationNo])
+  @@index([schoolId, deletedAt])
+  @@index([schoolId, status])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum StudentStatus {
+  ACTIVE
+  GRADUATED
+  DROPOUT
+  TRANSFERRED
+  SUSPENDED
+}
+
+model StudentParent {
+  id           String  @id @default(uuid())
+  schoolId     String
+  studentId    String
+  student      Student @relation(fields: [studentId], references: [id])
+  parentId     String
+  parent       User    @relation(fields: [parentId], references: [id])
+  relationship String
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@unique([studentId, parentId])
+  @@index([schoolId, deletedAt])
+}
+
+model Enrollment {
+  id             String       @id @default(uuid())
+  schoolId       String
+  studentId      String
+  student        Student      @relation(fields: [studentId], references: [id])
+  gradeId        String
+  grade          Grade        @relation(fields: [gradeId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  enrolledAt DateTime @default(now())
+  rollNo     Int?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([schoolId, studentId, academicYearId])
+  @@index([schoolId, deletedAt])
+  @@index([schoolId, gradeId, academicYearId])
+}
+
+// ==========================================
+// 📝 EXAMS & RESULTS
+// ==========================================
+
+model Exam {
+  id             String       @id @default(uuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  termId         String?
+  term           Term?        @relation(fields: [termId], references: [id])
+
+  name      String
+  examType  ExamType
+  startDate DateTime?
+  endDate   DateTime?
+  status    ExamStatus @default(DRAFT)
+
+  examResults ExamResult[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([schoolId, deletedAt])
+  @@index([schoolId, academicYearId, status])
+}
+
+enum ExamType {
+  UNIT_TEST
+  TERMINAL
+  PREBOARD
+  FINAL
+}
+
+enum ExamStatus {
+  DRAFT
+  MARKS_ENTRY
+  FINALIZED
+  PUBLISHED
+}
+
+model ExamResult {
+  id             String       @id @default(uuid())
+  schoolId       String
+  examId         String
+  exam           Exam         @relation(fields: [examId], references: [id])
+  studentId      String
+  student        Student      @relation(fields: [studentId], references: [id])
+  gradeSubjectId String
+  gradeSubject   GradeSubject @relation(fields: [gradeSubjectId], references: [id])
+
+  theoryMarksObtained    Decimal? @db.Decimal(5, 2)
+  theoryFullMarks        Int
+  theoryPercentage       Decimal? @db.Decimal(5, 2)
+  theoryGrade            String?
+  theoryGradePoint       Decimal? @db.Decimal(3, 1)
+
+  practicalMarksObtained Decimal? @db.Decimal(5, 2)
+  practicalFullMarks     Int?
+  practicalPercentage    Decimal? @db.Decimal(5, 2)
+  practicalGrade         String?
+  practicalGradePoint    Decimal? @db.Decimal(3, 1)
+
+  totalPercentage Decimal? @db.Decimal(5, 2)
+  finalGrade      String
+  finalGradePoint Decimal? @db.Decimal(3, 1)
+  isNg            Boolean  @default(false)
+  remarks         String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([examId, studentId, gradeSubjectId])
+  @@index([schoolId, deletedAt])
+  @@index([schoolId, examId, studentId])
+}
+
+// ==========================================
+// 💰 FINANCE ENGINE
+// ==========================================
+
+model FeeStructure {
+  id             String       @id @default(uuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  name    String
+  feeType FeeType
+  amount  Decimal @db.Decimal(10, 2)
+  level   Int?
+  stream  Stream?
+
+  invoiceLineItems InvoiceLineItem[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([schoolId, deletedAt])
+  @@index([schoolId, academicYearId])
+}
+
+enum FeeType {
+  TUITION
+  ADMISSION
+  EXAM
+  LAB
+  LIBRARY
+  TRANSPORT
+  OTHER
+}
+
+model Invoice {
+  id             String       @id @default(uuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id])
+  studentId      String
+  student        Student      @relation(fields: [studentId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  invoiceNo   String
+  totalAmount Decimal       @db.Decimal(10, 2)
+  paidAmount  Decimal       @db.Decimal(10, 2) @default(0)
+  dueDate     DateTime
+  status      InvoiceStatus @default(UNPAID)
+
+  lineItems InvoiceLineItem[]
+  payments  Payment[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([schoolId, invoiceNo])
+  @@index([schoolId, deletedAt])
+  @@index([schoolId, studentId, academicYearId])
+  @@index([schoolId, status])
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model InvoiceLineItem {
+  id             String       @id @default(uuid())
+  schoolId       String
+  invoiceId      String
+  invoice        Invoice      @relation(fields: [invoiceId], references: [id])
+  feeStructureId String
+  feeStructure   FeeStructure @relation(fields: [feeStructureId], references: [id])
+
+  description String
+  amount      Decimal @db.Decimal(10, 2)
+  discount    Decimal @db.Decimal(10, 2) @default(0)
+  netAmount   Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([schoolId, invoiceId])
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  schoolId      String
+  school        School        @relation(fields: [schoolId], references: [id])
+  studentId     String
+  student       Student       @relation(fields: [studentId], references: [id])
+  invoiceId     String?
+  invoice       Invoice?      @relation(fields: [invoiceId], references: [id])
+
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod
+  referenceNo   String?
+  receiptUrl    String?
+  receiptS3Key  String?
+  status        PaymentStatus @default(COMPLETED)
+  reversalOfId  String?
+  notes         String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([schoolId, studentId, deletedAt])
+  @@index([schoolId, invoiceId])
+  @@index([schoolId, status])
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  ONLINE
+  CHEQUE
+}
+
+enum PaymentStatus {
+  COMPLETED
+  REVERSED
+}
+
+// ==========================================
+// 🔔 NOTIFICATIONS
+// ==========================================
+
+model Notification {
+  id       String           @id @default(uuid())
+  schoolId String
+  school   School           @relation(fields: [schoolId], references: [id])
+  userId   String
+  user     User             @relation(fields: [userId], references: [id])
+
+  title      String
+  message    String           @db.Text
+  type       NotificationType
+  isRead     Boolean          @default(false)
+  entityName String?
+  entityId   String?
+
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+
+  @@index([schoolId, userId, isRead])
+  @@index([schoolId, deletedAt])
+}
+
+enum NotificationType {
+  PAYMENT
+  EXAM
+  SYSTEM
+  JOB_FAILED
+}
+
+// ==========================================
+// 🔑 IDEMPOTENCY (Financial Safety)
+// ==========================================
+
+model IdempotencyRecord {
+  id             String   @id @default(uuid())
+  schoolId       String
+  idempotencyKey String
+  endpoint       String
+  responseBody   Json
+  statusCode     Int
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([schoolId, idempotencyKey, endpoint])
+  @@index([expiresAt])
+}
+
+// ==========================================
+// 🔍 CROSS-CUTTING AUDIT TRAIL
+// ==========================================
+
+model AuditLog {
+  id       String  @id @default(uuid())
+  schoolId String
+  school   School  @relation(fields: [schoolId], references: [id])
+  userId   String?
+  user     User?   @relation(fields: [userId], references: [id])
+
+  entityName String
+  entityId   String
+  action     String
+
+  oldValues Json?
+  newValues Json?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@index([schoolId, entityName, entityId])
+  @@index([schoolId, createdAt])
+}
+
+// ==========================================
+// ☁️ FILE ASSETS (S3 References)
+// ==========================================
+
+model FileAsset {
+  id       String @id @default(uuid())
+  schoolId String
+
+  fileName  String
+  s3Key     String @unique
+  mimeType  String
+  sizeBytes Int
+
+  context   String
+  contextId String?
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([schoolId, context, contextId])
+}
