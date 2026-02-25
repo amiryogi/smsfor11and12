@@ -27,7 +27,7 @@ export class AcademicYearController {
   constructor(private readonly academicYearService: AcademicYearService) {}
 
   @Get('years')
-  @RequireRoles(Role.ADMIN, Role.TEACHER)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
   async findAll(
     @Request() req: { user: { schoolId: string } },
     @Query() pagination: PaginationDto,
@@ -36,7 +36,7 @@ export class AcademicYearController {
   }
 
   @Post('years')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async create(
     @Request() req: { user: { schoolId: string } },
     @Body() dto: CreateAcademicYearDto,
@@ -45,7 +45,7 @@ export class AcademicYearController {
   }
 
   @Patch('years/:id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async update(
     @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
@@ -55,7 +55,7 @@ export class AcademicYearController {
   }
 
   @Post('years/:id/set-current')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async setCurrent(
     @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
@@ -64,7 +64,7 @@ export class AcademicYearController {
   }
 
   @Get('years/:yearId/terms')
-  @RequireRoles(Role.ADMIN, Role.TEACHER)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
   async findTerms(
     @Request() req: { user: { schoolId: string } },
     @Param('yearId', ParseUuidPipe) yearId: string,
@@ -73,7 +73,7 @@ export class AcademicYearController {
   }
 
   @Post('years/:yearId/terms')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async createTerm(
     @Request() req: { user: { schoolId: string } },
     @Param('yearId', ParseUuidPipe) yearId: string,
@@ -83,7 +83,7 @@ export class AcademicYearController {
   }
 
   @Patch('terms/:id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async updateTerm(
     @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,

@@ -16,7 +16,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { RequireRoles } from '../../common/decorators/require-roles.decorator.js';
 import { ParseUuidPipe } from '../../common/pipes/parse-uuid.pipe.js';
-import { PaginationDto } from '../../common/dto/pagination.dto.js';
+import { StudentQueryDto } from './dto/student-query.dto.js';
 import { StudentsService } from './students.service.js';
 import { CreateStudentDto } from './dto/create-student.dto.js';
 import { UpdateStudentDto } from './dto/update-student.dto.js';
@@ -29,25 +29,22 @@ export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 
   @Get()
-  @RequireRoles(Role.ADMIN, Role.TEACHER)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
   async findAll(
     @Request() req: { user: { schoolId: string } },
-    @Query() pagination: PaginationDto,
-    @Query('status') status?: StudentStatus,
-    @Query('gradeId') gradeId?: string,
-    @Query('search') search?: string,
+    @Query() query: StudentQueryDto,
   ) {
     return this.studentsService.findAll(
       req.user.schoolId,
-      pagination,
-      status,
-      gradeId,
-      search,
+      query,
+      query.status as StudentStatus | undefined,
+      query.gradeId,
+      query.search,
     );
   }
 
   @Get(':id')
-  @RequireRoles(Role.ADMIN, Role.TEACHER, Role.PARENT)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER, Role.PARENT)
   async findOne(
     @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
@@ -56,7 +53,7 @@ export class StudentsController {
   }
 
   @Post()
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async create(
     @Request() req: { user: { schoolId: string; sub: string } },
     @Body() dto: CreateStudentDto,
@@ -65,7 +62,7 @@ export class StudentsController {
   }
 
   @Patch(':id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async update(
     @Request() req: { user: { schoolId: string; sub: string } },
     @Param('id', ParseUuidPipe) id: string,
@@ -80,7 +77,7 @@ export class StudentsController {
   }
 
   @Delete(':id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Request() req: { user: { schoolId: string; sub: string } },
@@ -92,7 +89,7 @@ export class StudentsController {
   // --- Parent linking ---
 
   @Post(':studentId/parents')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async linkParent(
     @Request() req: { user: { schoolId: string } },
     @Param('studentId', ParseUuidPipe) studentId: string,
@@ -102,7 +99,7 @@ export class StudentsController {
   }
 
   @Get(':studentId/parents')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async findParents(
     @Request() req: { user: { schoolId: string } },
     @Param('studentId', ParseUuidPipe) studentId: string,
@@ -111,7 +108,7 @@ export class StudentsController {
   }
 
   @Delete(':studentId/parents/:parentId')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   async unlinkParent(
     @Request() req: { user: { schoolId: string } },

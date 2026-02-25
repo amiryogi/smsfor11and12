@@ -28,7 +28,7 @@ export class SubjectController {
   constructor(private readonly subjectService: SubjectService) {}
 
   @Get()
-  @RequireRoles(Role.ADMIN, Role.TEACHER)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
   async findAll(
     @Request() req: { user: { schoolId: string } },
     @Query() pagination: PaginationDto,
@@ -37,7 +37,7 @@ export class SubjectController {
   }
 
   @Post()
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async create(
     @Request() req: { user: { schoolId: string } },
     @Body() dto: CreateSubjectDto,
@@ -46,7 +46,7 @@ export class SubjectController {
   }
 
   @Patch(':id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async update(
     @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
@@ -56,7 +56,7 @@ export class SubjectController {
   }
 
   @Delete(':id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Request() req: { user: { schoolId: string } },

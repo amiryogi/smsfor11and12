@@ -5,11 +5,10 @@ import {
   Param,
   Query,
   UseGuards,
-  Req,
+  Request,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import type { Request } from 'express';
 import { ReportsService } from './reports.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
@@ -18,26 +17,30 @@ import { ParseUuidPipe } from '../../common/pipes/parse-uuid.pipe.js';
 import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import { Role } from '@prisma/client';
 
-@Controller({ path: 'schools/:schoolId/reports', version: '1' })
+@Controller({ path: 'reports', version: '1' })
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
+
+  @Get('students/summary')
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
+  getStudentSummary(@Request() req: { user: { schoolId: string } }) {
+    return this.reportsService.studentSummary(req.user.schoolId);
+  }
 
   @Post('marksheet/:studentId/:examId')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
   @HttpCode(HttpStatus.ACCEPTED)
   generateMarksheet(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
+    @Request() req: { user: { sub: string; schoolId: string } },
     @Param('studentId', ParseUuidPipe) studentId: string,
     @Param('examId', ParseUuidPipe) examId: string,
-    @Req() req: Request,
   ) {
-    const userId = (req as any).user.sub;
     return this.reportsService.queueMarksheet(
-      schoolId,
+      req.user.schoolId,
       studentId,
       examId,
-      userId,
+      req.user.sub,
     );
   }
 
@@ -45,41 +48,45 @@ export class ReportsController {
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
   @HttpCode(HttpStatus.ACCEPTED)
   generateGradeSheet(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
+    @Request() req: { user: { sub: string; schoolId: string } },
     @Param('examId', ParseUuidPipe) examId: string,
-    @Req() req: Request,
   ) {
-    const userId = (req as any).user.sub;
-    return this.reportsService.queueGradeSheet(schoolId, examId, userId);
+    return this.reportsService.queueGradeSheet(
+      req.user.schoolId,
+      examId,
+      req.user.sub,
+    );
   }
 
   @Post('ledger/:studentId')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT)
   @HttpCode(HttpStatus.ACCEPTED)
   generateLedger(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
+    @Request() req: { user: { sub: string; schoolId: string } },
     @Param('studentId', ParseUuidPipe) studentId: string,
-    @Req() req: Request,
   ) {
-    const userId = (req as any).user.sub;
-    return this.reportsService.queueLedger(schoolId, studentId, userId);
+    return this.reportsService.queueLedger(
+      req.user.schoolId,
+      studentId,
+      req.user.sub,
+    );
   }
 
   @Get('files')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER, Role.ACCOUNTANT)
   listReportFiles(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
+    @Request() req: { user: { schoolId: string } },
     @Query() pagination: PaginationDto,
   ) {
-    return this.reportsService.listReportFiles(schoolId, pagination);
+    return this.reportsService.listReportFiles(req.user.schoolId, pagination);
   }
 
   @Get('files/:fileId/download')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER, Role.ACCOUNTANT)
   getDownloadUrl(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
+    @Request() req: { user: { schoolId: string } },
     @Param('fileId', ParseUuidPipe) fileId: string,
   ) {
-    return this.reportsService.getDownloadUrl(schoolId, fileId);
+    return this.reportsService.getDownloadUrl(req.user.schoolId, fileId);
   }
 }

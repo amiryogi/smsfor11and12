@@ -1,5 +1,10 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
+
+function createAdapter() {
+  return new PrismaMariaDb(process.env.DATABASE_URL!);
+}
 
 @Injectable()
 export class PrismaService
@@ -9,9 +14,11 @@ export class PrismaService
   public readonly replica: PrismaClient;
 
   constructor() {
-    super();
+    super({ adapter: createAdapter() });
 
-    this.replica = new PrismaClient();
+    this.replica = new PrismaClient({
+      adapter: createAdapter(),
+    });
 
     // Apply soft-delete extension to both primary and replica
     this.applySoftDeleteExtension(this);

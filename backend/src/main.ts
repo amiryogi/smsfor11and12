@@ -20,9 +20,11 @@ async function bootstrap() {
   // URI versioning: /api/v1/...
   app.enableVersioning({ type: VersioningType.URI });
 
-  // CORS
+  // CORS – support comma-separated origins (e.g. "http://localhost:5173,http://localhost:5174")
+  const rawOrigin = config.get<string>('CORS_ORIGIN', 'http://localhost:5173')!;
+  const origins = rawOrigin.split(',').map((o) => o.trim());
   app.enableCors({
-    origin: config.get<string>('CORS_ORIGIN', 'http://localhost:5173'),
+    origin: origins.length === 1 ? origins[0] : origins,
     credentials: true,
   });
 

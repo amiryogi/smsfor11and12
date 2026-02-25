@@ -22,7 +22,7 @@ const allMenuItems: MenuItem[] = [
   {
     key: "reports",
     label: "Reports",
-    path: "/reports/finance/ledger",
+    path: "/reports/ledger",
     icon: "📈",
   },
   { key: "settings", label: "Settings", path: "/settings", icon: "⚙️" },

@@ -1,69 +1,79 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Param,
   Query,
   UseGuards,
-  Req,
+  Request,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import type { Request } from 'express';
 import { NotificationsService } from './notifications.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { ParseUuidPipe } from '../../common/pipes/parse-uuid.pipe.js';
-import { PaginationDto } from '../../common/dto/pagination.dto.js';
+import { NotificationQueryDto } from './dto/notification-query.dto.js';
 
-@Controller({ path: 'schools/:schoolId/notifications', version: '1' })
+@Controller({ path: 'notifications', version: '1' })
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
   findAll(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
-    @Query() pagination: PaginationDto,
-    @Query('unreadOnly') unreadOnly?: string,
-    @Req() req?: Request,
+    @Request() req: { user: { sub: string; schoolId: string } },
+    @Query() query: NotificationQueryDto,
   ) {
-    const userId = (req as any).user.sub;
+    // Support both ?unreadOnly=true and ?isRead=false from frontend
+    const onlyUnread = query.unreadOnly === 'true' || query.isRead === 'false';
     return this.notificationsService.findAllForUser(
-      schoolId,
-      userId,
-      pagination,
-      unreadOnly === 'true',
+      req.user.schoolId,
+      req.user.sub,
+      query,
+      onlyUnread,
     );
   }
 
   @Get('unread-count')
-  getUnreadCount(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
-    @Req() req: Request,
-  ) {
-    const userId = (req as any).user.sub;
-    return this.notificationsService.getUnreadCount(schoolId, userId);
+  getUnreadCount(@Request() req: { user: { sub: string; schoolId: string } }) {
+    return this.notificationsService.getUnreadCount(
+      req.user.schoolId,
+      req.user.sub,
+    );
   }
 
   @Patch(':id/read')
   @HttpCode(HttpStatus.OK)
   markAsRead(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
+    @Request() req: { user: { sub: string; schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
-    @Req() req: Request,
   ) {
-    const userId = (req as any).user.sub;
-    return this.notificationsService.markAsRead(schoolId, userId, id);
+    return this.notificationsService.markAsRead(
+      req.user.schoolId,
+      req.user.sub,
+      id,
+    );
+  }
+
+  @Post('mark-all-read')
+  @HttpCode(HttpStatus.OK)
+  markAllAsReadPost(
+    @Request() req: { user: { sub: string; schoolId: string } },
+  ) {
+    return this.notificationsService.markAllAsRead(
+      req.user.schoolId,
+      req.user.sub,
+    );
   }
 
   @Patch('read-all')
   @HttpCode(HttpStatus.OK)
-  markAllAsRead(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
-    @Req() req: Request,
-  ) {
-    const userId = (req as any).user.sub;
-    return this.notificationsService.markAllAsRead(schoolId, userId);
+  markAllAsRead(@Request() req: { user: { sub: string; schoolId: string } }) {
+    return this.notificationsService.markAllAsRead(
+      req.user.schoolId,
+      req.user.sub,
+    );
   }
 }

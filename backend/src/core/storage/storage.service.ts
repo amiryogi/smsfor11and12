@@ -1,28 +1,16 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { v2 as cloudinary } from 'cloudinary';
 import { v4 as uuidv4 } from 'uuid';
+import { Readable } from 'stream';
 
 @Injectable()
 export class StorageService {
-  private readonly s3Client: S3Client;
-  private readonly bucketName: string;
-
   constructor() {
-    this.bucketName = process.env.S3_BUCKET_NAME || 'sms-bucket';
-    this.s3Client = new S3Client({
-      region: process.env.S3_REGION || 'us-east-1',
-      endpoint: process.env.S3_ENDPOINT,
-      credentials: {
-        accessKeyId: process.env.S3_ACCESS_KEY || '',
-        secretAccessKey: process.env.S3_SECRET_KEY || '',
-      },
-      forcePathStyle: true, // Required for MinIO
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+      secure: true,
     });
   }
 
@@ -32,37 +20,59 @@ export class StorageService {
     mimeType: string,
   ): Promise<{ s3Key: string; size: number }> {
     try {
-      const s3Key = `${folder}/${uuidv4()}`;
-      await this.s3Client.send(
-        new PutObjectCommand({
-          Bucket: this.bucketName,
-          Key: s3Key,
-          Body: buffer,
-          ContentType: mimeType,
-        }),
+      const publicId = `${folder}/${uuidv4()}`;
+      const resourceType = mimeType.startsWith('image/') ? 'image' : 'raw';
+
+      const result = await new Promise<{ public_id: string; bytes: number }>(
+        (resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              public_id: publicId,
+              resource_type: resourceType,
+              folder: undefined, // folder is already in publicId
+            },
+            (error, result) => {
+              if (error || !result) {
+                reject(error || new Error('Upload failed'));
+              } else {
+                resolve({ public_id: result.public_id, bytes: result.bytes });
+              }
+            },
+          );
+          const readable = Readable.from(buffer);
+          readable.pipe(uploadStream);
+        },
       );
-      return { s3Key, size: buffer.length };
+
+      return { s3Key: result.public_id, size: result.bytes };
     } catch {
       throw new InternalServerErrorException(
-        'Failed to upload file to Object Storage',
+        'Failed to upload file to Cloudinary',
       );
     }
   }
 
   async getPresignedUrl(s3Key: string, expiresIn = 3600): Promise<string> {
-    const command = new GetObjectCommand({
-      Bucket: this.bucketName,
-      Key: s3Key,
+    // Determine resource type from the key path
+    const resourceType =
+      s3Key.includes('profile') || s3Key.includes('logo') ? 'image' : 'raw';
+
+    // Generate a signed URL with expiration
+    const timestamp = Math.round(Date.now() / 1000) + expiresIn;
+    const url = cloudinary.utils.private_download_url(s3Key, '', {
+      resource_type: resourceType,
+      type: 'upload',
+      expires_at: timestamp,
     });
-    return getSignedUrl(this.s3Client, command, { expiresIn });
+    return url;
   }
 
   async deleteObject(s3Key: string): Promise<void> {
-    await this.s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: this.bucketName,
-        Key: s3Key,
-      }),
-    );
+    // Try both resource types since we may not know which it is
+    try {
+      await cloudinary.uploader.destroy(s3Key, { resource_type: 'raw' });
+    } catch {
+      await cloudinary.uploader.destroy(s3Key, { resource_type: 'image' });
+    }
   }
 }

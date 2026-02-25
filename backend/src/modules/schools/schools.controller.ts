@@ -23,13 +23,13 @@ export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 
   @Get('current')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async getCurrent(@Request() req: { user: { schoolId: string } }) {
     return this.schoolsService.findCurrent(req.user.schoolId);
   }
 
   @Patch('current')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async updateCurrent(
     @Request() req: { user: { schoolId: string } },
     @Body() dto: UpdateSchoolDto,

@@ -16,7 +16,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { RequireRoles } from '../../common/decorators/require-roles.decorator.js';
 import { ParseUuidPipe } from '../../common/pipes/parse-uuid.pipe.js';
-import { PaginationDto } from '../../common/dto/pagination.dto.js';
+import { GradeQueryDto } from './dto/grade-query.dto.js';
 import { GradeService } from './grade.service.js';
 import { CreateGradeDto } from './dto/create-grade.dto.js';
 import { UpdateGradeDto } from './dto/update-grade.dto.js';
@@ -32,23 +32,21 @@ export class GradeController {
   constructor(private readonly gradeService: GradeService) {}
 
   @Get('grades')
-  @RequireRoles(Role.ADMIN, Role.TEACHER)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
   async findAll(
     @Request() req: { user: { schoolId: string } },
-    @Query() pagination: PaginationDto,
-    @Query('level') level?: number,
-    @Query('stream') stream?: Stream,
+    @Query() query: GradeQueryDto,
   ) {
     return this.gradeService.findAll(
       req.user.schoolId,
-      pagination,
-      level ? Number(level) : undefined,
-      stream,
+      query,
+      query.level ? Number(query.level) : undefined,
+      query.stream as Stream | undefined,
     );
   }
 
   @Post('grades')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async create(
     @Request() req: { user: { schoolId: string } },
     @Body() dto: CreateGradeDto,
@@ -57,7 +55,7 @@ export class GradeController {
   }
 
   @Patch('grades/:id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async update(
     @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
@@ -67,7 +65,7 @@ export class GradeController {
   }
 
   @Delete('grades/:id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Request() req: { user: { schoolId: string } },
@@ -77,7 +75,7 @@ export class GradeController {
   }
 
   @Get('grades/:gradeId/subjects')
-  @RequireRoles(Role.ADMIN, Role.TEACHER)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
   async findGradeSubjects(
     @Request() req: { user: { schoolId: string } },
     @Param('gradeId', ParseUuidPipe) gradeId: string,
@@ -86,7 +84,7 @@ export class GradeController {
   }
 
   @Post('grades/:gradeId/subjects')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async assignSubject(
     @Request() req: { user: { schoolId: string } },
     @Param('gradeId', ParseUuidPipe) gradeId: string,
@@ -96,7 +94,7 @@ export class GradeController {
   }
 
   @Patch('grade-subjects/:id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async updateGradeSubject(
     @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
@@ -106,7 +104,7 @@ export class GradeController {
   }
 
   @Delete('grade-subjects/:id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   async removeGradeSubject(
     @Request() req: { user: { schoolId: string } },

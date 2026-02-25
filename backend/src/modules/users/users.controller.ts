@@ -16,7 +16,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { RequireRoles } from '../../common/decorators/require-roles.decorator.js';
 import { ParseUuidPipe } from '../../common/pipes/parse-uuid.pipe.js';
-import { PaginationDto } from '../../common/dto/pagination.dto.js';
+import { UserQueryDto } from './dto/user-query.dto.js';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
@@ -31,14 +31,17 @@ export class UsersController {
   @RequireRoles(Role.ADMIN, Role.SUPER_ADMIN)
   async findAll(
     @Request() req: { user: { schoolId: string } },
-    @Query() pagination: PaginationDto,
-    @Query('role') role?: Role,
+    @Query() query: UserQueryDto,
   ) {
-    return this.usersService.findAll(req.user.schoolId, pagination, role);
+    return this.usersService.findAll(
+      req.user.schoolId,
+      query,
+      query.role as Role | undefined,
+    );
   }
 
   @Get(':id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async findOne(
     @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
@@ -47,7 +50,7 @@ export class UsersController {
   }
 
   @Post()
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async create(
     @Request() req: { user: { schoolId: string; sub: string } },
     @Body() dto: CreateUserDto,
@@ -56,7 +59,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   async update(
     @Request() req: { user: { schoolId: string; sub: string } },
     @Param('id', ParseUuidPipe) id: string,
@@ -66,7 +69,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @RequireRoles(Role.ADMIN)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Request() req: { user: { schoolId: string; sub: string } },

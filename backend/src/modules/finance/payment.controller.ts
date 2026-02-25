@@ -6,6 +6,7 @@ import {
   Param,
   Body,
   Query,
+  Request,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -18,11 +19,11 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { RequireRoles } from '../../common/decorators/require-roles.decorator.js';
 import { ParseUuidPipe } from '../../common/pipes/parse-uuid.pipe.js';
-import { PaginationDto } from '../../common/dto/pagination.dto.js';
+import { PaymentQueryDto } from './dto/payment-query.dto.js';
 import { IdempotencyService } from './idempotency.service.js';
 import { Role } from '@prisma/client';
 
-@Controller({ path: 'schools/:schoolId/payments', version: '1' })
+@Controller({ path: 'finance/payments', version: '1' })
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PaymentController {
   constructor(
@@ -34,10 +35,11 @@ export class PaymentController {
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT)
   @HttpCode(HttpStatus.CREATED)
   async create(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
+    @Request() req: { user: { schoolId: string } },
     @Body() dto: CreatePaymentDto,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const schoolId = req.user.schoolId;
     const result = await this.idempotencyService.execute(
       dto.idempotencyKey,
       schoolId,
@@ -55,35 +57,32 @@ export class PaymentController {
   @Get()
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT)
   findAll(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
-    @Query() pagination: PaginationDto,
-    @Query('invoiceId') invoiceId?: string,
-    @Query('paymentMethod') paymentMethod?: string,
-    @Query('status') status?: string,
+    @Request() req: { user: { schoolId: string } },
+    @Query() query: PaymentQueryDto,
   ) {
-    return this.paymentService.findAll(schoolId, pagination, {
-      invoiceId,
-      paymentMethod,
-      status,
+    return this.paymentService.findAll(req.user.schoolId, query, {
+      invoiceId: query.invoiceId,
+      paymentMethod: query.paymentMethod,
+      status: query.status,
     });
   }
 
   @Get(':id')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT)
   findOne(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
+    @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
   ) {
-    return this.paymentService.findOne(schoolId, id);
+    return this.paymentService.findOne(req.user.schoolId, id);
   }
 
   @Patch(':id/reverse')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   reverse(
-    @Param('schoolId', ParseUuidPipe) schoolId: string,
+    @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
   ) {
-    return this.paymentService.reverse(schoolId, id);
+    return this.paymentService.reverse(req.user.schoolId, id);
   }
 }

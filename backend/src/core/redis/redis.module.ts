@@ -1,7 +1,6 @@
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { redisStore } from 'cache-manager-redis-yet';
 
 @Module({
   imports: [
@@ -9,15 +8,24 @@ import { redisStore } from 'cache-manager-redis-yet';
       isGlobal: true,
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        store: await redisStore({
-          socket: {
-            host: config.get<string>('REDIS_HOST', 'localhost'),
-            port: config.get<number>('REDIS_PORT', 6379),
-          },
-        }),
-        ttl: 300_000, // Default 5 minutes
-      }),
+      useFactory: async (config: ConfigService) => {
+        const logger = new Logger('RedisModule');
+        try {
+          const { redisStore } = await import('cache-manager-redis-yet');
+          const store = await redisStore({
+            socket: {
+              host: config.get<string>('REDIS_HOST', 'localhost'),
+              port: config.get<number>('REDIS_PORT', 6379),
+              connectTimeout: 3000,
+            },
+          });
+          logger.log('Connected to Redis for caching');
+          return { store, ttl: 300_000 };
+        } catch {
+          logger.warn('Redis unavailable — using in-memory cache');
+          return { ttl: 300_000 };
+        }
+      },
     }),
   ],
 })

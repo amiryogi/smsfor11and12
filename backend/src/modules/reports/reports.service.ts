@@ -144,4 +144,47 @@ export class ReportsService {
     const url = await this.storage.getPresignedUrl(file.s3Key, 3600);
     return { url, fileName: file.fileName, mimeType: file.mimeType };
   }
+
+  async studentSummary(schoolId: string) {
+    const [statusCounts, byGrade] = await Promise.all([
+      this.prisma.replica.student.groupBy({
+        by: ['status'],
+        where: { schoolId, deletedAt: null },
+        _count: { status: true },
+      }),
+      this.prisma.replica.$queryRaw<
+        { gradeId: string; gradeName: string; count: bigint }[]
+      >`
+        SELECT e.gradeId,
+               CONCAT('Grade ', g.level, ' - ', g.section, ' (', g.stream, ')') AS gradeName,
+               COUNT(DISTINCT e.studentId) AS count
+        FROM Enrollment e
+        JOIN Grade g ON g.id = e.gradeId
+        JOIN Student s ON s.id = e.studentId
+        WHERE e.schoolId = ${schoolId}
+          AND s.deletedAt IS NULL
+          AND s.status = 'ACTIVE'
+          AND e.deletedAt IS NULL
+        GROUP BY e.gradeId, g.level, g.section, g.stream
+        ORDER BY g.level, g.section
+      `,
+    ]);
+
+    const statusMap: Record<string, number> = {};
+    for (const row of statusCounts) {
+      statusMap[row.status] = row._count.status;
+    }
+
+    return {
+      totalActive: statusMap['ACTIVE'] ?? 0,
+      totalGraduated: statusMap['GRADUATED'] ?? 0,
+      totalDropout: statusMap['DROPOUT'] ?? 0,
+      totalTransferred: statusMap['TRANSFERRED'] ?? 0,
+      byGrade: byGrade.map((g) => ({
+        gradeId: g.gradeId,
+        gradeName: g.gradeName,
+        count: Number(g.count),
+      })),
+    };
+  }
 }
