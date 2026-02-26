@@ -193,4 +193,103 @@ export class InvoiceService {
       data: { paidAmount: totalPaid, status },
     });
   }
+
+  async bulkGenerate(
+    schoolId: string,
+    dto: {
+      gradeId: string;
+      academicYearId: string;
+      feeStructureIds: string[];
+      dueDate: string;
+    },
+  ) {
+    // Find all active students enrolled in the grade
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: {
+        schoolId,
+        gradeId: dto.gradeId,
+        academicYearId: dto.academicYearId,
+        student: { status: 'ACTIVE', deletedAt: null },
+      },
+      include: { student: true },
+    });
+
+    const feeStructures = await this.prisma.feeStructure.findMany({
+      where: {
+        id: { in: dto.feeStructureIds },
+        schoolId,
+        academicYearId: dto.academicYearId,
+      },
+    });
+
+    if (feeStructures.length !== dto.feeStructureIds.length) {
+      throw new Error(
+        'One or more fee structures not found or do not belong to this school/academic year',
+      );
+    }
+
+    const totalAmount = feeStructures.reduce(
+      (sum, fs) => sum.add(fs.amount),
+      new Prisma.Decimal(0),
+    );
+
+    let created = 0;
+    let skipped = 0;
+
+    for (const enrollment of enrollments) {
+      // Skip if student already has an invoice for these fee structures
+      const existing = await this.prisma.invoice.findFirst({
+        where: {
+          schoolId,
+          studentId: enrollment.studentId,
+          academicYearId: dto.academicYearId,
+          status: { not: 'CANCELLED' },
+          lineItems: {
+            some: {
+              feeStructureId: { in: dto.feeStructureIds },
+            },
+          },
+        },
+      });
+
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      const today = new Date();
+      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+      const count = await this.prisma.invoice.count({ where: { schoolId } });
+      const invoiceNo = `INV-${dateStr}-${String(count + 1).padStart(4, '0')}`;
+
+      await this.prisma.invoice.create({
+        data: {
+          schoolId,
+          studentId: enrollment.studentId,
+          academicYearId: dto.academicYearId,
+          invoiceNo,
+          totalAmount,
+          dueDate: new Date(dto.dueDate),
+          lineItems: {
+            create: feeStructures.map((fs) => ({
+              schoolId,
+              feeStructureId: fs.id,
+              amount: fs.amount,
+              discount: 0,
+              netAmount: fs.amount,
+              description: fs.name || `${fs.feeType} Fee`,
+            })),
+          },
+        },
+      });
+      created++;
+    }
+
+    return {
+      message: `Bulk invoice generation completed. Created: ${created}, Skipped (already invoiced): ${skipped}`,
+      created,
+      skipped,
+      total: enrollments.length,
+    };
+  }
 }

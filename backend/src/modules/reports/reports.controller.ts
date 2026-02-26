@@ -22,19 +22,43 @@ import { Role } from '@prisma/client';
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
+  // --- Student Reports ---
+
   @Get('students/summary')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   getStudentSummary(@Request() req: { user: { schoolId: string } }) {
     return this.reportsService.studentSummary(req.user.schoolId);
   }
 
-  @Post('marksheet/:studentId/:examId')
+  // --- Exam Reports ---
+
+  @Get('exam/:examId/grade/:gradeId')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
+  getGradeResults(
+    @Request() req: { user: { schoolId: string } },
+    @Param('examId', ParseUuidPipe) examId: string,
+    @Param('gradeId', ParseUuidPipe) gradeId: string,
+  ) {
+    return this.reportsService.getGradeResults(
+      req.user.schoolId,
+      examId,
+      gradeId,
+    );
+  }
+
+  @Get('exam/:examId/student/:studentId/marksheet')
+  @RequireRoles(
+    Role.SUPER_ADMIN,
+    Role.ADMIN,
+    Role.TEACHER,
+    Role.PARENT,
+    Role.STUDENT,
+  )
   @HttpCode(HttpStatus.ACCEPTED)
   generateMarksheet(
     @Request() req: { user: { sub: string; schoolId: string } },
-    @Param('studentId', ParseUuidPipe) studentId: string,
     @Param('examId', ParseUuidPipe) examId: string,
+    @Param('studentId', ParseUuidPipe) studentId: string,
   ) {
     return this.reportsService.queueMarksheet(
       req.user.schoolId,
@@ -44,33 +68,63 @@ export class ReportsController {
     );
   }
 
-  @Post('grade-sheet/:examId')
-  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
+  @Post('exam/:examId/bulk-marksheets')
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.ACCEPTED)
-  generateGradeSheet(
+  bulkMarksheets(
     @Request() req: { user: { sub: string; schoolId: string } },
     @Param('examId', ParseUuidPipe) examId: string,
   ) {
-    return this.reportsService.queueGradeSheet(
+    return this.reportsService.queueBulkMarksheets(
       req.user.schoolId,
       examId,
       req.user.sub,
     );
   }
 
-  @Post('ledger/:studentId')
+  // --- Finance Reports ---
+
+  @Get('finance/ledger')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT)
-  @HttpCode(HttpStatus.ACCEPTED)
-  generateLedger(
-    @Request() req: { user: { sub: string; schoolId: string } },
-    @Param('studentId', ParseUuidPipe) studentId: string,
+  getFinancialLedger(
+    @Request() req: { user: { schoolId: string } },
+    @Query() pagination: PaginationDto,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
-    return this.reportsService.queueLedger(
+    return this.reportsService.getFinancialLedger(
       req.user.schoolId,
-      studentId,
-      req.user.sub,
+      pagination,
+      startDate,
+      endDate,
     );
   }
+
+  @Get('finance/student/:studentId')
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT, Role.PARENT)
+  getStudentFinancialStatement(
+    @Request() req: { user: { schoolId: string } },
+    @Param('studentId', ParseUuidPipe) studentId: string,
+  ) {
+    return this.reportsService.getStudentFinancialStatement(
+      req.user.schoolId,
+      studentId,
+    );
+  }
+
+  @Get('finance/outstanding')
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT)
+  getOutstandingBalances(
+    @Request() req: { user: { schoolId: string } },
+    @Query() pagination: PaginationDto,
+  ) {
+    return this.reportsService.getOutstandingBalances(
+      req.user.schoolId,
+      pagination,
+    );
+  }
+
+  // --- Report Files ---
 
   @Get('files')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER, Role.ACCOUNTANT)

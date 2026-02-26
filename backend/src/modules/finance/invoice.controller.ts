@@ -49,7 +49,7 @@ export class InvoiceController {
   }
 
   @Get(':id')
-  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT, Role.TEACHER)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT, Role.PARENT)
   findOne(
     @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
@@ -65,5 +65,21 @@ export class InvoiceController {
     @Param('id', ParseUuidPipe) id: string,
   ) {
     return this.invoiceService.cancel(req.user.schoolId, id);
+  }
+
+  @Post('bulk-generate')
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
+  @HttpCode(HttpStatus.ACCEPTED)
+  bulkGenerate(
+    @Request() req: { user: { schoolId: string } },
+    @Body()
+    dto: {
+      gradeId: string;
+      academicYearId: string;
+      feeStructureIds: string[];
+      dueDate: string;
+    },
+  ) {
+    return this.invoiceService.bulkGenerate(req.user.schoolId, dto);
   }
 }

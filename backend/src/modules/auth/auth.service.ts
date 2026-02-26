@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
+import { StorageService } from '../../core/storage/storage.service.js';
 import {
   InvalidCredentialsException,
   AccountDeactivatedException,
@@ -15,6 +16,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly storage: StorageService,
   ) {}
 
   async login(email: string, password: string) {
@@ -105,7 +107,7 @@ export class AuthService {
     );
     if (!passwordValid) throw new InvalidCredentialsException();
 
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
     await this.prisma.user.update({
       where: { id: userId },
       data: { passwordHash },
@@ -132,5 +134,40 @@ export class AuthService {
     });
     if (!user) throw new InvalidCredentialsException();
     return user;
+  }
+
+  async uploadAvatar(
+    userId: string,
+    schoolId: string,
+    file: Express.Multer.File,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new InvalidCredentialsException();
+
+    const { s3Key, size } = await this.storage.uploadBuffer(
+      file.buffer,
+      `users/${schoolId}/avatars`,
+      file.mimetype,
+    );
+
+    // Save file asset record
+    await this.prisma.fileAsset.create({
+      data: {
+        schoolId,
+        s3Key,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        sizeBytes: size,
+        context: 'PROFILE_PIC',
+      },
+    });
+
+    // Update user photo reference
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { profilePicS3Key: s3Key },
+    });
+
+    return { s3Key };
   }
 }

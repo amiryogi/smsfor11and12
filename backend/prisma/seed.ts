@@ -3,7 +3,13 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import * as bcrypt from 'bcrypt';
 
-const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
+// The mariadb npm driver needs allowPublicKeyRetrieval for MySQL 8
+const seedUrl = new URL(process.env.DATABASE_URL!);
+seedUrl.protocol = 'mariadb:';
+if (!seedUrl.searchParams.has('allowPublicKeyRetrieval')) {
+  seedUrl.searchParams.set('allowPublicKeyRetrieval', 'true');
+}
+const adapter = new PrismaMariaDb(seedUrl.toString());
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
@@ -238,6 +244,25 @@ async function main() {
     });
   }
   console.log(`  ✅ Grade-Subject assignments for Grade 11`);
+
+  // 9b. Assign subjects to grade 12
+  for (const subject of subjects) {
+    await prisma.gradeSubject.upsert({
+      where: {
+        gradeId_subjectId: {
+          gradeId: grade12Science.id,
+          subjectId: subject.id,
+        },
+      },
+      update: {},
+      create: {
+        schoolId: school.id,
+        gradeId: grade12Science.id,
+        subjectId: subject.id,
+      },
+    });
+  }
+  console.log(`  ✅ Grade-Subject assignments for Grade 12`);
 
   console.log('\n🎉 Seeding complete!\n');
   console.log('Login credentials:');

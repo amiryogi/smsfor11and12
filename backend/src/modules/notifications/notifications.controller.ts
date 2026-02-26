@@ -59,17 +59,6 @@ export class NotificationsController {
 
   @Post('mark-all-read')
   @HttpCode(HttpStatus.OK)
-  markAllAsReadPost(
-    @Request() req: { user: { sub: string; schoolId: string } },
-  ) {
-    return this.notificationsService.markAllAsRead(
-      req.user.schoolId,
-      req.user.sub,
-    );
-  }
-
-  @Patch('read-all')
-  @HttpCode(HttpStatus.OK)
   markAllAsRead(@Request() req: { user: { sub: string; schoolId: string } }) {
     return this.notificationsService.markAllAsRead(
       req.user.schoolId,

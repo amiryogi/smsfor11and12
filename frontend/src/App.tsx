@@ -34,11 +34,12 @@ import { OutstandingPage } from "./pages/reports/OutstandingPage";
 import { UsersPage } from "./pages/users/UsersPage";
 import { SchoolSettingsPage } from "./pages/settings/SchoolSettingsPage";
 import { NotificationsPage } from "./pages/notifications/NotificationsPage";
+import { ProfilePage } from "./pages/profile/ProfilePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,
+      staleTime: 5 * 60 * 1000,
       retry: 1,
       refetchOnWindowFocus: false,
     },
@@ -72,22 +73,24 @@ const router = createBrowserRouter([
       // Exams
       { path: "exams", element: <ExamsListPage /> },
       { path: "exams/:id", element: <ExamDetailPage /> },
-      { path: "exams/:id/marks", element: <MarksEntryPage /> },
+      { path: "exams/:id/marks-entry", element: <MarksEntryPage /> },
       { path: "exams/:id/results", element: <ExamResultsPage /> },
       { path: "exams/:examId/report", element: <ExamReportPage /> },
       // Finance
-      { path: "finance/fees", element: <FeeStructuresPage /> },
+      { path: "finance/fee-structures", element: <FeeStructuresPage /> },
       { path: "finance/invoices", element: <InvoicesPage /> },
       { path: "finance/invoices/:id", element: <InvoiceDetailPage /> },
       { path: "finance/payments", element: <PaymentsPage /> },
       { path: "finance/payments/new", element: <PaymentCreatePage /> },
       // Reports
-      { path: "reports/ledger", element: <FinancialLedgerPage /> },
-      { path: "reports/outstanding", element: <OutstandingPage /> },
+      { path: "reports/finance/ledger", element: <FinancialLedgerPage /> },
+      { path: "reports/finance/outstanding", element: <OutstandingPage /> },
+      { path: "reports/exam/:examId", element: <ExamReportPage /> },
       // Admin
       { path: "users", element: <UsersPage /> },
       { path: "settings", element: <SchoolSettingsPage /> },
       { path: "notifications", element: <NotificationsPage /> },
+      { path: "profile", element: <ProfilePage /> },
     ],
   },
   {

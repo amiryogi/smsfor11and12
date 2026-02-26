@@ -7,6 +7,8 @@ import {
   Query,
   UseGuards,
   Request,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
@@ -45,12 +47,23 @@ export class EnrollmentController {
     return this.enrollmentService.create(req.user.schoolId, dto, req.user.sub);
   }
 
-  @Get('student/:studentId')
-  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
-  async findByStudent(
-    @Request() req: { user: { schoolId: string } },
-    @Param('studentId', ParseUuidPipe) studentId: string,
+  @Post('bulk-promote')
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
+  @HttpCode(HttpStatus.ACCEPTED)
+  async bulkPromote(
+    @Request() req: { user: { schoolId: string; sub: string } },
+    @Body()
+    body: {
+      fromGradeId: string;
+      toGradeId: string;
+      fromAcademicYearId: string;
+      toAcademicYearId: string;
+    },
   ) {
-    return this.enrollmentService.findByStudent(req.user.schoolId, studentId);
+    return this.enrollmentService.bulkPromote(
+      req.user.schoolId,
+      body,
+      req.user.sub,
+    );
   }
 }

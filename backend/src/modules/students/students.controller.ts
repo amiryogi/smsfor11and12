@@ -11,7 +11,10 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { RequireRoles } from '../../common/decorators/require-roles.decorator.js';
@@ -21,12 +24,16 @@ import { StudentsService } from './students.service.js';
 import { CreateStudentDto } from './dto/create-student.dto.js';
 import { UpdateStudentDto } from './dto/update-student.dto.js';
 import { LinkParentDto } from './dto/link-parent.dto.js';
+import { EnrollmentService } from './enrollment.service.js';
 import { Role, StudentStatus } from '@prisma/client';
 
 @Controller({ path: 'students', version: '1' })
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class StudentsController {
-  constructor(private readonly studentsService: StudentsService) {}
+  constructor(
+    private readonly studentsService: StudentsService,
+    private readonly enrollmentService: EnrollmentService,
+  ) {}
 
   @Get()
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
@@ -120,5 +127,29 @@ export class StudentsController {
       studentId,
       parentId,
     );
+  }
+
+  // --- Photo upload ---
+
+  @Post(':id/photo')
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadPhoto(
+    @Request() req: { user: { schoolId: string } },
+    @Param('id', ParseUuidPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.studentsService.uploadPhoto(req.user.schoolId, id, file);
+  }
+
+  // --- Enrollment history ---
+
+  @Get(':studentId/enrollments')
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER, Role.PARENT)
+  async findEnrollmentsByStudent(
+    @Request() req: { user: { schoolId: string } },
+    @Param('studentId', ParseUuidPipe) studentId: string,
+  ) {
+    return this.enrollmentService.findByStudent(req.user.schoolId, studentId);
   }
 }

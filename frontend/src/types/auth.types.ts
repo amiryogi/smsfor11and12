@@ -7,6 +7,8 @@ export interface AuthUser {
   schoolId: string;
   firstName: string;
   lastName: string;
+  phone?: string | null;
+  profilePicS3Key?: string | null;
 }
 
 export interface LoginInput {

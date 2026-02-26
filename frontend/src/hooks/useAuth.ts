@@ -59,3 +59,17 @@ export function useChangePassword() {
     },
   });
 }
+
+export function useUploadAvatar() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => authApi.uploadAvatar(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.me() });
+      toast.success("Profile photo updated");
+    },
+    onError: () => {
+      toast.error("Failed to upload photo");
+    },
+  });
+}

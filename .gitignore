@@ -3,7 +3,8 @@ node_modules/
 .pnpm-store/
 
 # Minio binaries
-minio/*.exe
+minio/
+*.exe
 # Build
 dist/
 build/

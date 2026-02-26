@@ -64,10 +64,14 @@ export function Topbar() {
           )}
         </button>
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-sm font-medium text-primary-600">
+          <button
+            onClick={() => navigate("/profile")}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-sm font-medium text-primary-600 transition-colors hover:bg-primary-200"
+            title="My Profile"
+          >
             {user?.firstName?.charAt(0)}
             {user?.lastName?.charAt(0)}
-          </div>
+          </button>
           <button
             onClick={handleLogout}
             className="text-sm text-gray-500 hover:text-gray-700"

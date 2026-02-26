@@ -111,4 +111,99 @@ export class EnrollmentService {
 
     return enrollment;
   }
+
+  async bulkPromote(
+    schoolId: string,
+    dto: {
+      fromGradeId: string;
+      toGradeId: string;
+      fromAcademicYearId: string;
+      toAcademicYearId: string;
+    },
+    actorId: string,
+  ) {
+    // Find all active enrollments in the current grade/year
+    const currentEnrollments = await this.prisma.enrollment.findMany({
+      where: {
+        schoolId,
+        gradeId: dto.fromGradeId,
+        academicYearId: dto.fromAcademicYearId,
+        student: { status: 'ACTIVE', deletedAt: null },
+      },
+      include: { student: true },
+    });
+
+    // Check target grade capacity
+    const targetGrade = await this.prisma.grade.findFirst({
+      where: { id: dto.toGradeId, schoolId },
+    });
+    if (!targetGrade)
+      throw new ResourceNotFoundException('Grade', dto.toGradeId);
+
+    const existingInTarget = await this.prisma.enrollment.count({
+      where: {
+        schoolId,
+        gradeId: dto.toGradeId,
+        academicYearId: dto.toAcademicYearId,
+      },
+    });
+
+    if (existingInTarget + currentEnrollments.length > targetGrade.capacity) {
+      throw new GradeSectionFullException(
+        targetGrade.level,
+        targetGrade.section,
+      );
+    }
+
+    let promoted = 0;
+    let skipped = 0;
+
+    for (const enrollment of currentEnrollments) {
+      // Skip if already enrolled in target
+      const alreadyEnrolled = await this.prisma.enrollment.findFirst({
+        where: {
+          schoolId,
+          studentId: enrollment.studentId,
+          academicYearId: dto.toAcademicYearId,
+        },
+      });
+
+      if (alreadyEnrolled) {
+        skipped++;
+        continue;
+      }
+
+      await this.prisma.enrollment.create({
+        data: {
+          schoolId,
+          studentId: enrollment.studentId,
+          gradeId: dto.toGradeId,
+          academicYearId: dto.toAcademicYearId,
+          rollNo: enrollment.rollNo,
+        },
+      });
+      promoted++;
+    }
+
+    await this.auditService.log({
+      schoolId,
+      userId: actorId,
+      entityName: 'Enrollment',
+      entityId: 'bulk-promote',
+      action: 'BULK_PROMOTE',
+      newValues: {
+        fromGradeId: dto.fromGradeId,
+        toGradeId: dto.toGradeId,
+        promoted,
+        skipped,
+      },
+    });
+
+    return {
+      message: `Bulk promotion completed. Promoted: ${promoted}, Skipped: ${skipped}`,
+      promoted,
+      skipped,
+      total: currentEnrollments.length,
+    };
+  }
 }

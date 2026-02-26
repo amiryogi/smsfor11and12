@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
+import { StorageService } from '../../core/storage/storage.service.js';
 import { CreateStudentDto } from './dto/create-student.dto.js';
 import { UpdateStudentDto } from './dto/update-student.dto.js';
 import { LinkParentDto } from './dto/link-parent.dto.js';
@@ -20,6 +21,7 @@ export class StudentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly storage: StorageService,
   ) {}
 
   async findAll(
@@ -238,5 +240,44 @@ export class StudentsService {
       );
 
     await this.prisma.studentParent.delete({ where: { id: link.id } });
+  }
+
+  // --- Photo upload ---
+
+  async uploadPhoto(
+    schoolId: string,
+    studentId: string,
+    file: Express.Multer.File,
+  ) {
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, schoolId },
+    });
+    if (!student) throw new StudentNotFoundException(studentId);
+
+    const { s3Key, size } = await this.storage.uploadBuffer(
+      file.buffer,
+      `students/${schoolId}/photos`,
+      file.mimetype,
+    );
+
+    // Save file asset record
+    const fileAsset = await this.prisma.fileAsset.create({
+      data: {
+        schoolId,
+        s3Key,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        sizeBytes: size,
+        context: 'PROFILE_PIC',
+      },
+    });
+
+    // Update student photo reference
+    await this.prisma.student.update({
+      where: { id: studentId },
+      data: { profilePicS3Key: s3Key },
+    });
+
+    return { fileAssetId: fileAsset.id, s3Key };
   }
 }

@@ -13,7 +13,7 @@ interface MenuItem {
 
 const allMenuItems: MenuItem[] = [
   { key: "dashboard", label: "Dashboard", path: "/", icon: "📊" },
-  { key: "schools", label: "Schools", path: "/settings", icon: "🏫" },
+  { key: "schools", label: "Schools", path: "/schools", icon: "🏫" },
   { key: "users", label: "Users", path: "/users", icon: "👥" },
   { key: "students", label: "Students", path: "/students", icon: "🎓" },
   { key: "academic", label: "Academic", path: "/academic/years", icon: "📅" },
@@ -22,7 +22,7 @@ const allMenuItems: MenuItem[] = [
   {
     key: "reports",
     label: "Reports",
-    path: "/reports/ledger",
+    path: "/reports/finance/ledger",
     icon: "📈",
   },
   { key: "settings", label: "Settings", path: "/settings", icon: "⚙️" },

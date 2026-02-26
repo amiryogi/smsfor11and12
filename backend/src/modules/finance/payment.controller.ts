@@ -68,7 +68,7 @@ export class PaymentController {
   }
 
   @Get(':id')
-  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT)
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT, Role.PARENT)
   findOne(
     @Request() req: { user: { schoolId: string } },
     @Param('id', ParseUuidPipe) id: string,
@@ -76,7 +76,7 @@ export class PaymentController {
     return this.paymentService.findOne(req.user.schoolId, id);
   }
 
-  @Patch(':id/reverse')
+  @Post(':id/reverse')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   reverse(

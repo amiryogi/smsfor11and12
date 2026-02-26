@@ -29,4 +29,14 @@ export const authApi = {
     apiClient
       .post<ApiResponse<{ message: string }>>("/auth/change-password", input)
       .then((r) => r.data),
+
+  uploadAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiClient
+      .post<ApiResponse<{ s3Key: string }>>("/auth/avatar", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((r) => r.data);
+  },
 };
