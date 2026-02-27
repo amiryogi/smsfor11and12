@@ -31,8 +31,9 @@ export type InvoiceStatus =
   | "PAID"
   | "OVERDUE"
   | "CANCELLED";
-export type PaymentMethod = "CASH" | "BANK_TRANSFER" | "ONLINE" | "CHEQUE";
+export type PaymentMethod = "CASH" | "BANK_TRANSFER" | "ONLINE" | "CHEQUE" | "ESEWA" | "KHALTI";
 export type PaymentStatus = "COMPLETED" | "REVERSED";
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "LEAVE";
 export type NotificationType = "PAYMENT" | "EXAM" | "SYSTEM" | "JOB_FAILED";
 
 export interface PaginationMeta {

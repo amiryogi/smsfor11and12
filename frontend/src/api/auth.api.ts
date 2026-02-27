@@ -13,11 +13,10 @@ export const authApi = {
       .post<ApiResponse<LoginResponse>>("/auth/login", input)
       .then((r) => r.data),
 
-  refresh: (refreshToken: string) =>
+  /** Refresh uses httpOnly cookie (web). No body needed. */
+  refresh: () =>
     apiClient
-      .post<
-        ApiResponse<{ accessToken: string; refreshToken: string }>
-      >("/auth/refresh", { refreshToken })
+      .post<ApiResponse<{ accessToken: string }>>("/auth/refresh", {})
       .then((r) => r.data),
 
   logout: () => apiClient.post("/auth/logout").then((r) => r.data),

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { examsApi, examResultsApi } from "../api/exams.api";
+import { examsApi, examResultsApi, examSummariesApi } from "../api/exams.api";
 import type {
   CreateExamInput,
   UpdateExamInput,
@@ -162,5 +162,30 @@ export function useBulkCreateExamResults(examId: string) {
     onError: () => {
       toast.error("Failed to save bulk marks");
     },
+  });
+}
+
+// ---- Exam GPA Summaries ----
+
+export const examSummaryKeys = {
+  all: ["examSummaries"] as const,
+  list: (examId: string) => [...examSummaryKeys.all, "list", examId] as const,
+  byStudent: (examId: string, studentId: string) =>
+    [...examSummaryKeys.all, "student", examId, studentId] as const,
+};
+
+export function useExamSummaries(examId: string) {
+  return useQuery({
+    queryKey: examSummaryKeys.list(examId),
+    queryFn: () => examSummariesApi.list(examId),
+    enabled: !!examId,
+  });
+}
+
+export function useStudentExamSummary(examId: string, studentId: string) {
+  return useQuery({
+    queryKey: examSummaryKeys.byStudent(examId, studentId),
+    queryFn: () => examSummariesApi.getByStudent(examId, studentId),
+    enabled: !!examId && !!studentId,
   });
 }

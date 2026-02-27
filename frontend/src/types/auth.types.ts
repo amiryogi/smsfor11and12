@@ -18,7 +18,6 @@ export interface LoginInput {
 
 export interface LoginResponse {
   accessToken: string;
-  refreshToken: string;
   user: AuthUser;
 }
 

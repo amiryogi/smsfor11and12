@@ -18,17 +18,20 @@ model School {
   phone     String?
   logoS3Key String?
 
-  users          User[]
-  students       Student[]
-  academicYears  AcademicYear[]
-  grades         Grade[]
-  subjects       Subject[]
-  exams          Exam[]
-  feeStructures  FeeStructure[]
-  invoices       Invoice[]
-  payments       Payment[]
-  notifications  Notification[]
-  auditLogs      AuditLog[]
+  users                  User[]
+  students               Student[]
+  academicYears          AcademicYear[]
+  grades                 Grade[]
+  subjects               Subject[]
+  exams                  Exam[]
+  feeStructures          FeeStructure[]
+  invoices               Invoice[]
+  payments               Payment[]
+  notifications          Notification[]
+  auditLogs              AuditLog[]
+  boardExamRegistrations BoardExamRegistration[]
+  attendances            Attendance[]
+  studentExamSummaries   StudentExamSummary[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -52,6 +55,8 @@ model User {
   parentStudents  StudentParent[]
   auditLogs       AuditLog[]
   notifications   Notification[]
+  refreshTokens   RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -59,6 +64,19 @@ model User {
 
   @@index([schoolId, deletedAt])
   @@index([schoolId, role])
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String
+  expiresAt  DateTime
+  isRevoked  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
 }
 
 enum Role {
@@ -89,6 +107,8 @@ model AcademicYear {
   exams         Exam[]
   feeStructures FeeStructure[]
   invoices      Invoice[]
+  boardExamRegistrations BoardExamRegistration[]
+  attendances            Attendance[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -130,6 +150,8 @@ model Grade {
 
   enrollments   Enrollment[]
   gradeSubjects GradeSubject[]
+  exams         Exam[]
+  attendances   Attendance[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -182,6 +204,7 @@ model GradeSubject {
   subjectId String
   subject   Subject @relation(fields: [subjectId], references: [id])
   teacherId String?
+  isOptional Boolean @default(false)
 
   examResults ExamResult[]
 
@@ -203,21 +226,27 @@ model Student {
   school          School        @relation(fields: [schoolId], references: [id])
 
   registrationNo  String
-  symbolNo        String?
   firstName       String
   lastName        String
   dob             DateTime
+  dobBsYear       Int?          // Bikram Sambat year (e.g. 2063)
+  dobBsMonth      Int?          // BS month (1-12)
+  dobBsDay        Int?          // BS day (1-32)
   gender          Gender
   phone           String?
   address         String?
+  citizenshipNo   String?
   profilePicS3Key String?
   status          StudentStatus @default(ACTIVE)
 
-  enrollments Enrollment[]
-  examResults ExamResult[]
-  invoices    Invoice[]
-  payments    Payment[]
-  parents     StudentParent[]
+  enrollments            Enrollment[]
+  examResults            ExamResult[]
+  studentExamSummaries   StudentExamSummary[]
+  invoices               Invoice[]
+  payments               Payment[]
+  parents                StudentParent[]
+  boardExamRegistrations BoardExamRegistration[]
+  attendanceRecords      AttendanceRecord[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -292,6 +321,8 @@ model Exam {
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
   termId         String?
   term           Term?        @relation(fields: [termId], references: [id])
+  gradeId        String?
+  grade          Grade?       @relation(fields: [gradeId], references: [id])
 
   name      String
   examType  ExamType
@@ -300,6 +331,7 @@ model Exam {
   status    ExamStatus @default(DRAFT)
 
   examResults ExamResult[]
+  studentExamSummaries StudentExamSummary[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -307,6 +339,7 @@ model Exam {
 
   @@index([schoolId, deletedAt])
   @@index([schoolId, academicYearId, status])
+  @@index([schoolId, gradeId])
 }
 
 enum ExamType {
@@ -358,6 +391,31 @@ model ExamResult {
   @@unique([examId, studentId, gradeSubjectId])
   @@index([schoolId, deletedAt])
   @@index([schoolId, examId, studentId])
+}
+
+model StudentExamSummary {
+  id        String  @id @default(uuid())
+  schoolId  String
+  school    School  @relation(fields: [schoolId], references: [id])
+  examId    String
+  exam      Exam    @relation(fields: [examId], references: [id])
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  totalCreditHours      Int
+  weightedGradePointSum Decimal  @db.Decimal(6, 2)
+  gpa                   Decimal  @db.Decimal(3, 2)
+  classification        String   // DISTINCTION, FIRST_DIVISION, SECOND_DIVISION, THIRD_DIVISION, FAIL
+  rank                  Int?
+  hasNg                 Boolean  @default(false)
+  ngSubjectCount        Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([examId, studentId])
+  @@index([schoolId, examId])
+  @@index([schoolId, studentId])
 }
 
 // ==========================================
@@ -484,6 +542,8 @@ enum PaymentMethod {
   BANK_TRANSFER
   ONLINE
   CHEQUE
+  ESEWA
+  KHALTI
 }
 
 enum PaymentStatus {
@@ -543,6 +603,24 @@ model IdempotencyRecord {
 }
 
 // ==========================================
+// 🔑 PASSWORD RESET
+// ==========================================
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   // SHA-256 of OTP or reset token
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+// ==========================================
 // 🔍 CROSS-CUTTING AUDIT TRAIL
 // ==========================================
 
@@ -587,4 +665,78 @@ model FileAsset {
   deletedAt DateTime?
 
   @@index([schoolId, context, contextId])
+}
+
+// ==========================================
+// 🏛️ BOARD EXAM REGISTRATION
+// ==========================================
+
+model BoardExamRegistration {
+  id             String       @id @default(uuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id])
+  studentId      String
+  student        Student      @relation(fields: [studentId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  symbolNo String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([schoolId, symbolNo, academicYearId])
+  @@index([schoolId, studentId])
+  @@index([schoolId, deletedAt])
+}
+
+// ==========================================
+// 📋 ATTENDANCE
+// ==========================================
+
+model Attendance {
+  id             String       @id @default(uuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id])
+  gradeId        String
+  grade          Grade        @relation(fields: [gradeId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  date    DateTime @db.Date
+  takenBy String?  // userId of teacher who took attendance
+
+  records AttendanceRecord[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([schoolId, gradeId, date])
+  @@index([schoolId, deletedAt])
+  @@index([schoolId, gradeId, academicYearId])
+}
+
+model AttendanceRecord {
+  id           String     @id @default(uuid())
+  attendanceId String
+  attendance   Attendance @relation(fields: [attendanceId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+
+  status  AttendanceStatus
+  remarks String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([attendanceId, studentId])
+  @@index([studentId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  LEAVE
 }

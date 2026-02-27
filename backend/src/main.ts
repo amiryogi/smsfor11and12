@@ -3,6 +3,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module.js';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter.js';
 import { ResponseTransformInterceptor } from './common/interceptors/response-transform.interceptor.js';
@@ -14,6 +15,9 @@ async function bootstrap() {
   app.useLogger(app.get(Logger));
 
   const config = app.get(ConfigService);
+
+  // Cookie parser for httpOnly refresh token cookies
+  app.use(cookieParser());
 
   // Global prefix
   app.setGlobalPrefix('api');

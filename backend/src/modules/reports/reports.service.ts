@@ -10,7 +10,7 @@ import {
 import { Prisma } from '@prisma/client';
 
 export interface PdfJobData {
-  type: 'marksheet' | 'grade-sheet' | 'ledger';
+  type: 'marksheet' | 'grade-sheet' | 'ledger' | 'character-certificate' | 'transfer-certificate';
   schoolId: string;
   userId: string;
   studentId?: string;
@@ -112,6 +112,68 @@ export class ReportsService {
     };
   }
 
+  async queueCharacterCertificate(
+    schoolId: string,
+    studentId: string,
+    userId: string,
+  ) {
+    const job = await this.pdfQueue.add(
+      'generate-pdf',
+      {
+        type: 'character-certificate',
+        schoolId,
+        studentId,
+        userId,
+      } satisfies PdfJobData,
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: 100,
+        removeOnFail: false,
+      },
+    );
+
+    this.logger.log(
+      `Queued character certificate job ${job.id} for student ${studentId}`,
+    );
+    return {
+      jobId: job.id,
+      message:
+        'Character certificate generation queued. You will be notified when ready.',
+    };
+  }
+
+  async queueTransferCertificate(
+    schoolId: string,
+    studentId: string,
+    userId: string,
+  ) {
+    const job = await this.pdfQueue.add(
+      'generate-pdf',
+      {
+        type: 'transfer-certificate',
+        schoolId,
+        studentId,
+        userId,
+      } satisfies PdfJobData,
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: 100,
+        removeOnFail: false,
+      },
+    );
+
+    this.logger.log(
+      `Queued transfer certificate job ${job.id} for student ${studentId}`,
+    );
+    return {
+      jobId: job.id,
+      message:
+        'Transfer certificate generation queued. You will be notified when ready.',
+    };
+  }
+
   async listReportFiles(schoolId: string, pagination: PaginationDto) {
     const where = { schoolId, context: 'Report' };
 
@@ -192,6 +254,7 @@ export class ReportsService {
   // --- New spec-required methods ---
 
   async getGradeResults(schoolId: string, examId: string, gradeId: string) {
+    // Fetch per-subject results
     const results = await this.prisma.replica.examResult.findMany({
       where: {
         schoolId,
@@ -206,7 +269,24 @@ export class ReportsService {
       },
     });
 
-    // Group by student
+    // Fetch pre-computed GPA summaries for students in this grade
+    const summaries = await this.prisma.replica.studentExamSummary.findMany({
+      where: { schoolId, examId },
+      include: { student: { include: { enrollments: true } } },
+    });
+
+    // Filter summaries to students enrolled in this grade
+    const gradeSummaryMap = new Map<string, (typeof summaries)[number]>();
+    for (const s of summaries) {
+      const enrolled = s.student.enrollments?.some(
+        (e: { gradeId: string }) => e.gradeId === gradeId,
+      );
+      if (enrolled) {
+        gradeSummaryMap.set(s.studentId, s);
+      }
+    }
+
+    // Group results by student
     const studentMap = new Map<
       string,
       { student: any; subjects: any[]; total: number }
@@ -224,22 +304,43 @@ export class ReportsService {
       entry.subjects.push({
         gradeSubjectId: r.gradeSubjectId,
         subjectName: r.gradeSubject.subject.name,
+        subjectCode: r.gradeSubject.subject.code,
+        creditHours: r.gradeSubject.subject.creditHours,
+        isOptional: r.gradeSubject.isOptional,
         theoryMarksObtained: r.theoryMarksObtained,
+        theoryFullMarks: r.theoryFullMarks,
         practicalMarksObtained: r.practicalMarksObtained,
+        practicalFullMarks: r.practicalFullMarks,
         finalGrade: r.finalGrade,
         finalGradePoint: r.finalGradePoint,
+        isNg: r.isNg,
       });
       entry.total +=
         Number(r.theoryMarksObtained ?? 0) +
         Number(r.practicalMarksObtained ?? 0);
     }
 
-    const ranked = [...studentMap.values()]
-      .sort((a, b) => b.total - a.total)
-      .map((entry, i) => ({
-        rank: i + 1,
-        ...entry,
-      }));
+    // Build ranked results using GPA from summaries
+    const ranked = [...studentMap.entries()]
+      .map(([studentId, entry]) => {
+        const summary = gradeSummaryMap.get(studentId);
+        return {
+          ...entry,
+          gpa: summary ? Number(summary.gpa) : null,
+          classification: summary?.classification ?? null,
+          totalCreditHours: summary?.totalCreditHours ?? null,
+          rank: summary?.rank ?? null,
+          hasNg: summary?.hasNg ?? false,
+          ngSubjectCount: summary?.ngSubjectCount ?? 0,
+        };
+      })
+      .sort((a, b) => {
+        // Sort by GPA descending (null GPA goes to end)
+        if (a.gpa === null && b.gpa === null) return 0;
+        if (a.gpa === null) return 1;
+        if (b.gpa === null) return -1;
+        return b.gpa - a.gpa;
+      });
 
     return { examId, gradeId, results: ranked };
   }

@@ -5,8 +5,10 @@ export interface Exam {
   status: "DRAFT" | "MARKS_ENTRY" | "FINALIZED" | "PUBLISHED";
   startDate?: string;
   endDate?: string;
+  gradeId?: string;
   academicYear?: { id: string; name: string };
   term?: { id: string; name: string };
+  grade?: { id: string; level: number; section: string; stream: string };
 }
 
 export interface ExamResult {
@@ -22,6 +24,8 @@ export interface ExamResult {
   finalGrade: string;
   finalGradePoint?: number;
   isNg: boolean;
+  creditHours?: number;
+  isOptional?: boolean;
 }
 
 export interface BulkMarksEntry {
@@ -29,4 +33,26 @@ export interface BulkMarksEntry {
   gradeSubjectId: string;
   theoryMarksObtained: number;
   practicalMarksObtained?: number;
+}
+
+// ---- NEB GPA / Classification ----
+
+export type NebClassification =
+  | "DISTINCTION"
+  | "FIRST_DIVISION"
+  | "SECOND_DIVISION"
+  | "THIRD_DIVISION"
+  | "FAIL";
+
+export interface StudentExamSummary {
+  id: string;
+  examId: string;
+  studentId: string;
+  totalCreditHours: number;
+  weightedGradePointSum: number;
+  gpa: number;
+  classification: NebClassification;
+  rank: number | null;
+  hasNg: boolean;
+  ngSubjectCount: number;
 }

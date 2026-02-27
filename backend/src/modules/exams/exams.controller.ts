@@ -37,6 +37,7 @@ export class ExamsController {
       query,
       query.academicYearId,
       query.status as ExamStatus | undefined,
+      query.gradeId,
     );
   }
 

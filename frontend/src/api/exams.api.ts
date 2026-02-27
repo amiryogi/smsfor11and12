@@ -11,6 +11,8 @@ import type {
   ExamResult,
   CreateExamResultInput,
   BulkExamResultInput,
+  StudentExamSummary,
+  ExamFinalizationResult,
 } from "../types/exam.types";
 
 export const examsApi = {
@@ -37,7 +39,7 @@ export const examsApi = {
 
   finalize: (id: string) =>
     apiClient
-      .post<AsyncJobResponse>(`/exams/${id}/finalize`)
+      .post<ApiResponse<ExamFinalizationResult>>(`/exams/${id}/finalize`)
       .then((r) => r.data),
 
   publish: (id: string) =>
@@ -69,5 +71,21 @@ export const examResultsApi = {
       .get<
         ApiResponse<ExamResult[]>
       >(`/exams/${examId}/results/student/${studentId}`)
+      .then((r) => r.data),
+};
+
+export const examSummariesApi = {
+  list: (examId: string) =>
+    apiClient
+      .get<
+        ApiResponse<StudentExamSummary[]>
+      >(`/exams/${examId}/summaries`)
+      .then((r) => r.data),
+
+  getByStudent: (examId: string, studentId: string) =>
+    apiClient
+      .get<
+        ApiResponse<StudentExamSummary>
+      >(`/exams/${examId}/summaries/student/${studentId}`)
       .then((r) => r.data),
 };

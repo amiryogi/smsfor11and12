@@ -4,13 +4,16 @@ export interface Student {
   id: string;
   schoolId: string;
   registrationNo: string;
-  symbolNo: string | null;
   firstName: string;
   lastName: string;
   dob: string;
+  dobBsYear: number | null;
+  dobBsMonth: number | null;
+  dobBsDay: number | null;
   gender: Gender;
   phone: string | null;
   address: string | null;
+  citizenshipNo: string | null;
   profilePicS3Key: string | null;
   status: StudentStatus;
   enrollments?: Enrollment[];
@@ -23,10 +26,13 @@ export interface CreateStudentInput {
   firstName: string;
   lastName: string;
   dob: string;
+  dobBsYear?: number;
+  dobBsMonth?: number;
+  dobBsDay?: number;
   gender: Gender;
   phone?: string;
   address?: string;
-  symbolNo?: string;
+  citizenshipNo?: string;
 }
 
 export interface UpdateStudentInput {
@@ -34,7 +40,10 @@ export interface UpdateStudentInput {
   lastName?: string;
   phone?: string;
   address?: string;
-  symbolNo?: string;
+  citizenshipNo?: string;
+  dobBsYear?: number;
+  dobBsMonth?: number;
+  dobBsDay?: number;
   status?: StudentStatus;
 }
 

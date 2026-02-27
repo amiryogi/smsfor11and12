@@ -124,6 +124,36 @@ export class ReportsController {
     );
   }
 
+  // --- NEB Certificates ---
+
+  @Get('student/:studentId/character-certificate')
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER)
+  @HttpCode(HttpStatus.ACCEPTED)
+  generateCharacterCertificate(
+    @Request() req: { user: { sub: string; schoolId: string } },
+    @Param('studentId', ParseUuidPipe) studentId: string,
+  ) {
+    return this.reportsService.queueCharacterCertificate(
+      req.user.schoolId,
+      studentId,
+      req.user.sub,
+    );
+  }
+
+  @Get('student/:studentId/transfer-certificate')
+  @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
+  @HttpCode(HttpStatus.ACCEPTED)
+  generateTransferCertificate(
+    @Request() req: { user: { sub: string; schoolId: string } },
+    @Param('studentId', ParseUuidPipe) studentId: string,
+  ) {
+    return this.reportsService.queueTransferCertificate(
+      req.user.schoolId,
+      studentId,
+      req.user.sub,
+    );
+  }
+
   // --- Report Files ---
 
   @Get('files')

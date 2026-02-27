@@ -19,13 +19,12 @@ export function useCurrentUser() {
 }
 
 export function useLogin() {
-  const { setTokens, setUser } = useAuthStore();
+  const { login } = useAuthStore();
 
   return useMutation({
     mutationFn: (input: LoginInput) => authApi.login(input),
     onSuccess: (data) => {
-      setTokens(data.data.accessToken, data.data.refreshToken);
-      setUser(data.data.user);
+      login(data.data.accessToken, data.data.user);
       toast.success("Logged in successfully");
     },
     onError: () => {

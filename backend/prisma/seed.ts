@@ -264,6 +264,109 @@ async function main() {
   }
   console.log(`  ✅ Grade-Subject assignments for Grade 12`);
 
+  // 10. Create demo students with BS dates
+  const studentsData = [
+    {
+      firstName: 'Aarav',
+      lastName: 'Adhikari',
+      registrationNo: '2081-001',
+      dob: new Date('2006-05-15'),
+      dobBsYear: 2063,
+      dobBsMonth: 2,
+      dobBsDay: 1,
+      gender: 'MALE' as const,
+      phone: '+977-9801000001',
+      address: 'Kathmandu',
+    },
+    {
+      firstName: 'Srijana',
+      lastName: 'Gurung',
+      registrationNo: '2081-002',
+      dob: new Date('2006-08-22'),
+      dobBsYear: 2063,
+      dobBsMonth: 5,
+      dobBsDay: 6,
+      gender: 'FEMALE' as const,
+      phone: '+977-9801000002',
+      address: 'Pokhara',
+    },
+    {
+      firstName: 'Bikash',
+      lastName: 'Thapa',
+      registrationNo: '2081-003',
+      dob: new Date('2006-12-10'),
+      dobBsYear: 2063,
+      dobBsMonth: 8,
+      dobBsDay: 25,
+      gender: 'MALE' as const,
+      phone: '+977-9801000003',
+      address: 'Lalitpur',
+    },
+  ];
+
+  const students = [];
+  for (const s of studentsData) {
+    let student = await prisma.student.findFirst({
+      where: { schoolId: school.id, registrationNo: s.registrationNo },
+    });
+    if (!student) {
+      student = await prisma.student.create({
+        data: { schoolId: school.id, ...s },
+      });
+    }
+    students.push(student);
+  }
+  console.log(`  ✅ Students: ${students.map((s) => s.registrationNo).join(', ')}`);
+
+  // 11. Enroll students in Grade 11
+  for (let i = 0; i < students.length; i++) {
+    const existing = await prisma.enrollment.findFirst({
+      where: {
+        schoolId: school.id,
+        studentId: students[i].id,
+        academicYearId: academicYear.id,
+      },
+    });
+    if (!existing) {
+      await prisma.enrollment.create({
+        data: {
+          schoolId: school.id,
+          studentId: students[i].id,
+          gradeId: grade11Science.id,
+          academicYearId: academicYear.id,
+          rollNo: i + 1,
+        },
+      });
+    }
+  }
+  console.log(`  ✅ Enrollments for Grade 11`);
+
+  // 12. Create board exam registrations for Grade 12 students (demo)
+  const boardExamData = [
+    { studentId: students[0].id, symbolNo: 'S-20810001' },
+    { studentId: students[1].id, symbolNo: 'S-20810002' },
+  ];
+  for (const entry of boardExamData) {
+    const existing = await prisma.boardExamRegistration.findFirst({
+      where: {
+        schoolId: school.id,
+        studentId: entry.studentId,
+        academicYearId: academicYear.id,
+      },
+    });
+    if (!existing) {
+      await prisma.boardExamRegistration.create({
+        data: {
+          schoolId: school.id,
+          studentId: entry.studentId,
+          academicYearId: academicYear.id,
+          symbolNo: entry.symbolNo,
+        },
+      });
+    }
+  }
+  console.log(`  ✅ Board Exam Registrations`);
+
   console.log('\n🎉 Seeding complete!\n');
   console.log('Login credentials:');
   console.log('  Super Admin: superadmin@sms.edu.np / SuperAdmin@123');

@@ -8,5 +8,9 @@ export class ExamQueryDto extends PaginationDto {
 
   @IsOptional()
   @IsString()
+  gradeId?: string;
+
+  @IsOptional()
+  @IsString()
   status?: string;
 }

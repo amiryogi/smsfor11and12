@@ -196,6 +196,54 @@ export class ResourceNotFoundException extends BusinessException {
 }
 
 // ==========================================
+// ATTENDANCE DOMAIN
+// ==========================================
+
+export class AttendanceAlreadyTakenException extends BusinessException {
+  constructor(gradeId: string, date: string) {
+    super(
+      'ATTENDANCE_ALREADY_TAKEN',
+      `Attendance for grade ${gradeId} on ${date} has already been recorded`,
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class AttendanceNotFoundException extends BusinessException {
+  constructor(attendanceId: string) {
+    super(
+      'ATTENDANCE_NOT_FOUND',
+      `Attendance record with ID ${attendanceId} not found`,
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+// ==========================================
+// BOARD EXAM REGISTRATION
+// ==========================================
+
+export class DuplicateSymbolNoException extends BusinessException {
+  constructor(symbolNo: string, academicYearId: string) {
+    super(
+      'DUPLICATE_SYMBOL_NO',
+      `Symbol number ${symbolNo} is already assigned for academic year ${academicYearId}`,
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class BoardExamRegistrationNotFoundException extends BusinessException {
+  constructor(id: string) {
+    super(
+      'BOARD_EXAM_REGISTRATION_NOT_FOUND',
+      `Board exam registration with ID ${id} not found`,
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+// ==========================================
 // CONVENIENCE ALIASES (used by service files)
 // ==========================================
 
@@ -230,6 +278,44 @@ export class InvoiceAlreadyCancelled extends BusinessException {
       'INVOICE_ALREADY_CANCELLED',
       `Invoice ${id} is already cancelled`,
       HttpStatus.CONFLICT,
+    );
+  }
+}
+
+// ==========================================
+// MARKS LOCKING
+// ==========================================
+
+export class MarksEntryNotOpenException extends BusinessException {
+  constructor(examId: string, status: string) {
+    super(
+      'MARKS_ENTRY_NOT_OPEN',
+      `Exam ${examId} is in ${status} status — marks can only be entered when status is MARKS_ENTRY`,
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
+  }
+}
+
+export class SubjectNotAssignedToTeacherException extends BusinessException {
+  constructor(gradeSubjectId: string) {
+    super(
+      'SUBJECT_NOT_ASSIGNED',
+      `You are not assigned to teach grade-subject ${gradeSubjectId}. Only your assigned subjects can be edited.`,
+      HttpStatus.FORBIDDEN,
+    );
+  }
+}
+
+// ==========================================
+// PASSWORD RESET
+// ==========================================
+
+export class InvalidResetTokenException extends BusinessException {
+  constructor() {
+    super(
+      'INVALID_RESET_TOKEN',
+      'Invalid or expired password reset token',
+      HttpStatus.BAD_REQUEST,
     );
   }
 }

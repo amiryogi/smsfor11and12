@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
+import { ExamResultService } from './exam-result.service.js';
 import { CreateExamDto } from './dto/create-exam.dto.js';
 import { UpdateExamDto } from './dto/update-exam.dto.js';
 import {
@@ -16,9 +17,12 @@ import type { ExamStatus } from '@prisma/client';
 
 @Injectable()
 export class ExamsService {
+  private readonly logger = new Logger(ExamsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly examResultService: ExamResultService,
   ) {}
 
   async findAll(
@@ -26,6 +30,7 @@ export class ExamsService {
     pagination: PaginationDto,
     academicYearId?: string,
     status?: ExamStatus,
+    gradeId?: string,
   ) {
     const {
       page = 1,
@@ -36,6 +41,7 @@ export class ExamsService {
     const where: Record<string, unknown> = { schoolId };
     if (academicYearId) where.academicYearId = academicYearId;
     if (status) where.status = status;
+    if (gradeId) where.gradeId = gradeId;
 
     const [data, total] = await Promise.all([
       this.prisma.exam.findMany({
@@ -43,7 +49,7 @@ export class ExamsService {
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
-        include: { academicYear: true, term: true },
+        include: { academicYear: true, term: true, grade: true },
       }),
       this.prisma.exam.count({ where }),
     ]);
@@ -54,7 +60,7 @@ export class ExamsService {
   async findOne(schoolId: string, examId: string) {
     const exam = await this.prisma.exam.findFirst({
       where: { id: examId, schoolId },
-      include: { academicYear: true, term: true },
+      include: { academicYear: true, term: true, grade: true },
     });
     if (!exam) throw new ExamNotFoundException(examId);
     return exam;
@@ -68,6 +74,7 @@ export class ExamsService {
         examType: dto.examType,
         academicYearId: dto.academicYearId,
         termId: dto.termId,
+        gradeId: dto.gradeId,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
         status: 'DRAFT',
@@ -144,6 +151,23 @@ export class ExamsService {
       throw new InvalidExamStatusTransition(exam.status, 'FINALIZED');
     }
 
+    // Step 1: Re-compute all grades (fixes any PENDING or stale entries)
+    const recomputed = await this.examResultService.recomputeAllGrades(
+      schoolId,
+      examId,
+    );
+    this.logger.log(`Re-computed ${recomputed} exam results for exam ${examId}`);
+
+    // Step 2: Compute credit-hour-weighted GPA & ranks for all students
+    const gpaSummary = await this.examResultService.computeAllExamSummaries(
+      schoolId,
+      examId,
+    );
+    this.logger.log(
+      `GPA summary: ${gpaSummary.total} students, ${gpaSummary.passing} passing, ${gpaSummary.failing} failing`,
+    );
+
+    // Step 3: Update exam status to FINALIZED
     const updated = await this.prisma.exam.update({
       where: { id: examId },
       data: { status: 'FINALIZED' },
@@ -159,7 +183,13 @@ export class ExamsService {
       newValues: { status: 'FINALIZED' },
     });
 
-    return updated;
+    return {
+      ...updated,
+      finalization: {
+        resultsRecomputed: recomputed,
+        ...gpaSummary,
+      },
+    };
   }
 
   async publish(schoolId: string, examId: string, actorId: string) {

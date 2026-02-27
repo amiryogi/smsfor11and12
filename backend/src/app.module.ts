@@ -14,6 +14,9 @@ import { FinanceModule } from './modules/finance/finance.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { AttendanceModule } from './modules/attendance/attendance.module.js';
+import { BoardExamModule } from './modules/board-exam/board-exam.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 
 @Module({
   imports: [
@@ -58,6 +61,11 @@ import { HealthModule } from './modules/health/health.module.js';
     FinanceModule,
     NotificationsModule,
     ReportsModule,
+    AttendanceModule,
+    BoardExamModule,
+
+    // Admin (DLQ management – SUPER_ADMIN only)
+    AdminModule,
 
     // Health checks (no auth)
     HealthModule,

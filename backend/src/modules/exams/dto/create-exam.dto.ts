@@ -26,6 +26,10 @@ export class CreateExamDto {
   termId?: string;
 
   @IsOptional()
+  @IsUUID()
+  gradeId?: string;
+
+  @IsOptional()
   @IsDateString()
   startDate?: string;
 

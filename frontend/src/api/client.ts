@@ -7,9 +7,10 @@ const API_BASE_URL =
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true, // send httpOnly cookies on every request
 });
 
-// Request interceptor: Inject access token
+// Request interceptor: Inject access token from in-memory store
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
@@ -18,7 +19,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor: Handle 401 + token refresh
+// Response interceptor: Handle 401 + token refresh via httpOnly cookie
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -28,15 +29,16 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = useAuthStore.getState().refreshToken;
-        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-          refreshToken,
-        });
+        // Cookie is sent automatically; no body needed for web
+        const { data } = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true },
+        );
 
-        useAuthStore
-          .getState()
-          .setTokens(data.data.accessToken, data.data.refreshToken);
-        originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`;
+        const newAccessToken = data.data.accessToken;
+        useAuthStore.getState().setAccessToken(newAccessToken);
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
         useAuthStore.getState().logout();

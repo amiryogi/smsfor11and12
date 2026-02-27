@@ -31,7 +31,7 @@ export interface Payment {
   invoiceNo?: string;
   amount: number;
   method?: string;
-  paymentMethod: "CASH" | "BANK_TRANSFER" | "CHEQUE" | "ONLINE";
+  paymentMethod: "CASH" | "BANK_TRANSFER" | "CHEQUE" | "ONLINE" | "ESEWA" | "KHALTI";
   referenceNo?: string;
   receiptNo?: string;
   receiptS3Key?: string;

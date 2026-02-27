@@ -5,6 +5,7 @@ export interface Exam {
   schoolId: string;
   academicYearId: string;
   termId: string | null;
+  gradeId: string | null;
   name: string;
   examType: ExamType;
   startDate: string | null;
@@ -12,6 +13,7 @@ export interface Exam {
   status: ExamStatus;
   academicYear?: { id: string; name: string };
   term?: { id: string; name: string } | null;
+  grade?: { id: string; level: number; section: string; stream: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -21,6 +23,7 @@ export interface CreateExamInput {
   examType: ExamType;
   academicYearId: string;
   termId?: string;
+  gradeId?: string;
   startDate?: string;
   endDate?: string;
 }
@@ -60,7 +63,8 @@ export interface ExamResult {
   };
   gradeSubject?: {
     id: string;
-    subject?: { id: string; name: string; code: string };
+    isOptional?: boolean;
+    subject?: { id: string; name: string; code: string; creditHours?: number };
   };
   createdAt: string;
   updatedAt: string;
@@ -75,4 +79,44 @@ export interface CreateExamResultInput {
 
 export interface BulkExamResultInput {
   results: CreateExamResultInput[];
+}
+
+// ---- NEB GPA / Classification ----
+
+export type NebClassification =
+  | "DISTINCTION"
+  | "FIRST_DIVISION"
+  | "SECOND_DIVISION"
+  | "THIRD_DIVISION"
+  | "FAIL";
+
+export interface StudentExamSummary {
+  id: string;
+  schoolId: string;
+  examId: string;
+  studentId: string;
+  totalCreditHours: number;
+  weightedGradePointSum: number;
+  gpa: number;
+  classification: NebClassification;
+  rank: number | null;
+  hasNg: boolean;
+  ngSubjectCount: number;
+  student?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    registrationNo: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExamFinalizationResult extends Exam {
+  finalization: {
+    resultsRecomputed: number;
+    total: number;
+    passing: number;
+    failing: number;
+  };
 }

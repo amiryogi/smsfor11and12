@@ -6,6 +6,8 @@ import { PrismaService } from '../../../core/prisma/prisma.service.js';
 import { StorageService } from '../../../core/storage/storage.service.js';
 import { NotificationsService } from '../../notifications/notifications.service.js';
 import { PdfJobData } from '../reports.service.js';
+import { adToBs, formatBsDate } from '../../../common/utils/nepali-date.util.js';
+import { toNepaliDigits, formatBsDateEnglish } from '../../../common/utils/nepali-format.util.js';
 
 @Processor('pdf-generation')
 export class PdfProcessor extends WorkerHost {
@@ -43,6 +45,18 @@ export class PdfProcessor extends WorkerHost {
           break;
         case 'ledger':
           ({ html, fileName } = await this.buildLedgerHtml(
+            schoolId,
+            studentId!,
+          ));
+          break;
+        case 'character-certificate':
+          ({ html, fileName } = await this.buildCharacterCertificateHtml(
+            schoolId,
+            studentId!,
+          ));
+          break;
+        case 'transfer-certificate':
+          ({ html, fileName } = await this.buildTransferCertificateHtml(
             schoolId,
             studentId!,
           ));
@@ -364,6 +378,228 @@ export class PdfProcessor extends WorkerHost {
         </thead>
         <tbody>${rows}</tbody>
       </table>
+    </body>
+    </html>`;
+
+    return { html, fileName };
+  }
+
+  // ===================================================================
+  // NEB CHARACTER CERTIFICATE
+  // ===================================================================
+
+  private async buildCharacterCertificateHtml(
+    schoolId: string,
+    studentId: string,
+  ) {
+    const [student, school, enrollment] = await Promise.all([
+      this.prisma.replica.student.findFirst({
+        where: { id: studentId, schoolId },
+      }),
+      this.prisma.replica.school.findUnique({ where: { id: schoolId } }),
+      this.prisma.replica.enrollment.findFirst({
+        where: { studentId, student: { schoolId } },
+        include: { grade: true, academicYear: true },
+        orderBy: { enrolledAt: 'desc' },
+      }),
+    ]);
+
+    const fileName = `character_certificate_${student?.firstName}_${student?.lastName}_${Date.now()}.pdf`;
+
+    const now = new Date();
+    const bsNow = adToBs(now);
+    const bsDateStr = formatBsDateEnglish(bsNow.year, bsNow.month, bsNow.day);
+    const bsDateNepali = `${toNepaliDigits(bsNow.year)}/${toNepaliDigits(String(bsNow.month).padStart(2, '0'))}/${toNepaliDigits(String(bsNow.day).padStart(2, '0'))}`;
+
+    // BS DOB
+    let dobBsStr = '–';
+    if (student?.dobBsYear && student.dobBsMonth && student.dobBsDay) {
+      dobBsStr = formatBsDateEnglish(student.dobBsYear, student.dobBsMonth, student.dobBsDay);
+    } else if (student?.dob) {
+      const bs = adToBs(new Date(student.dob));
+      dobBsStr = formatBsDateEnglish(bs.year, bs.month, bs.day);
+    }
+
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        @page { size: A4 landscape; margin: 0; }
+        body { font-family: 'Times New Roman', serif; margin: 0; padding: 40px 60px; }
+        .border { border: 3px double #1a3c6e; padding: 30px 40px; min-height: 500px; position: relative; }
+        .header { text-align: center; margin-bottom: 25px; }
+        .header h1 { font-size: 28px; margin: 0; color: #1a3c6e; text-transform: uppercase; }
+        .header h2 { font-size: 20px; margin: 5px 0; color: #333; }
+        .header h3 { font-size: 22px; margin: 10px 0 5px; text-decoration: underline; color: #8b0000; }
+        .nepal-flag { font-size: 14px; color: #666; }
+        .content { font-size: 16px; line-height: 2; margin: 20px 30px; }
+        .content p { margin: 8px 0; }
+        .field { font-weight: bold; text-decoration: underline; }
+        .footer { display: flex; justify-content: space-between; margin-top: 50px; padding: 0 30px; }
+        .footer div { text-align: center; }
+        .footer .line { border-top: 1px solid #333; width: 200px; margin-top: 60px; padding-top: 5px; }
+        .date-box { text-align: right; margin-top: 15px; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <div class="border">
+        <div class="header">
+          <p class="nepal-flag">🇳🇵 नेपाल सरकार · शिक्षा, विज्ञान तथा प्रविधि मन्त्रालय</p>
+          <h1>${school?.name || 'School Name'}</h1>
+          <p>${school?.address || ''} · ${school?.phone || ''}</p>
+          <h2>National Examinations Board (NEB)</h2>
+          <h3>CHARACTER CERTIFICATE</h3>
+        </div>
+
+        <div class="content">
+          <p>This is to certify that <span class="field">${student?.firstName} ${student?.lastName}</span>,
+          son/daughter of <span class="field">______________________</span>,
+          a resident of <span class="field">${student?.address || '______________________'}</span>,</p>
+
+          <p>Date of Birth (BS): <span class="field">${dobBsStr}</span></p>
+
+          <p>was a regular student of this institution in
+          <span class="field">Grade ${enrollment?.grade?.level ?? '___'} (${enrollment?.grade?.stream ?? '___'})</span>
+          during the academic year <span class="field">${enrollment?.academicYear?.name ?? '______'}</span>.</p>
+
+          <p>Registration No: <span class="field">${student?.registrationNo || '____________'}</span></p>
+
+          <p>During the period of study, the above-mentioned student was found to be of
+          <span class="field">GOOD</span> moral character. He/She was regular and punctual in attendance
+          and was not involved in any kind of disciplinary misconduct.</p>
+
+          <p>I wish him/her every success in life.</p>
+        </div>
+
+        <div class="date-box">
+          <p>Date (BS): ${bsDateStr}</p>
+          <p>Date (BS Nepali): ${bsDateNepali}</p>
+          <p>Date (AD): ${now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        </div>
+
+        <div class="footer">
+          <div>
+            <div class="line">Class Teacher</div>
+          </div>
+          <div>
+            <div class="line">Exam In-Charge</div>
+          </div>
+          <div>
+            <div class="line">Principal</div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>`;
+
+    return { html, fileName };
+  }
+
+  // ===================================================================
+  // NEB TRANSFER CERTIFICATE
+  // ===================================================================
+
+  private async buildTransferCertificateHtml(
+    schoolId: string,
+    studentId: string,
+  ) {
+    const [student, school, enrollment] = await Promise.all([
+      this.prisma.replica.student.findFirst({
+        where: { id: studentId, schoolId },
+      }),
+      this.prisma.replica.school.findUnique({ where: { id: schoolId } }),
+      this.prisma.replica.enrollment.findFirst({
+        where: { studentId, student: { schoolId } },
+        include: { grade: true, academicYear: true },
+        orderBy: { enrolledAt: 'desc' },
+      }),
+    ]);
+
+    const fileName = `transfer_certificate_${student?.firstName}_${student?.lastName}_${Date.now()}.pdf`;
+
+    const now = new Date();
+    const bsNow = adToBs(now);
+    const bsDateStr = formatBsDateEnglish(bsNow.year, bsNow.month, bsNow.day);
+
+    let dobBsStr = '–';
+    if (student?.dobBsYear && student.dobBsMonth && student.dobBsDay) {
+      dobBsStr = formatBsDateEnglish(student.dobBsYear, student.dobBsMonth, student.dobBsDay);
+    } else if (student?.dob) {
+      const bs = adToBs(new Date(student.dob));
+      dobBsStr = formatBsDateEnglish(bs.year, bs.month, bs.day);
+    }
+
+    const enrolledBs = enrollment?.enrolledAt
+      ? formatBsDateEnglish(
+          adToBs(new Date(enrollment.enrolledAt)).year,
+          adToBs(new Date(enrollment.enrolledAt)).month,
+          adToBs(new Date(enrollment.enrolledAt)).day,
+        )
+      : '–';
+
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        @page { size: A4; margin: 0; }
+        body { font-family: 'Times New Roman', serif; margin: 0; padding: 40px 50px; }
+        .border { border: 3px double #1a3c6e; padding: 25px 35px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { font-size: 26px; margin: 0; color: #1a3c6e; }
+        .header h3 { font-size: 20px; margin: 10px 0 5px; text-decoration: underline; color: #8b0000; }
+        table.info { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        table.info td { padding: 6px 10px; font-size: 15px; border-bottom: 1px dotted #999; }
+        table.info td.label { width: 40%; font-weight: bold; }
+        .content { margin: 15px 20px; font-size: 15px; line-height: 1.8; }
+        .footer { display: flex; justify-content: space-between; margin-top: 50px; padding: 0 20px; }
+        .footer div { text-align: center; }
+        .footer .line { border-top: 1px solid #333; width: 180px; margin-top: 60px; padding-top: 5px; }
+        .tc-no { font-size: 13px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="border">
+        <div class="header">
+          <p>🇳🇵 नेपाल सरकार · शिक्षा, विज्ञान तथा प्रविधि मन्त्रालय</p>
+          <h1>${school?.name || 'School Name'}</h1>
+          <p>${school?.address || ''}</p>
+          <h3>TRANSFER CERTIFICATE</h3>
+          <p class="tc-no">T.C. No: ________</p>
+        </div>
+
+        <table class="info">
+          <tr><td class="label">Name of Student</td><td>${student?.firstName} ${student?.lastName}</td></tr>
+          <tr><td class="label">Registration No.</td><td>${student?.registrationNo || '–'}</td></tr>
+          <tr><td class="label">Date of Birth (BS)</td><td>${dobBsStr}</td></tr>
+          <tr><td class="label">Gender</td><td>${student?.gender || '–'}</td></tr>
+          <tr><td class="label">Address</td><td>${student?.address || '–'}</td></tr>
+          <tr><td class="label">Father's/Guardian's Name</td><td>______________________</td></tr>
+          <tr><td class="label">Class/Grade at Admission</td><td>${enrollment?.grade?.level ?? '–'} (${enrollment?.grade?.stream ?? '–'})</td></tr>
+          <tr><td class="label">Admitted On (BS)</td><td>${enrolledBs}</td></tr>
+          <tr><td class="label">Class/Grade at Leaving</td><td>${enrollment?.grade?.level ?? '–'} (${enrollment?.grade?.stream ?? '–'})</td></tr>
+          <tr><td class="label">Reason for Leaving</td><td>${student?.status === 'TRANSFERRED' ? 'Transfer' : student?.status === 'GRADUATED' ? 'Graduated' : '______________________'}</td></tr>
+          <tr><td class="label">Character & Conduct</td><td>Good</td></tr>
+          <tr><td class="label">Date of Issue (BS)</td><td>${bsDateStr}</td></tr>
+        </table>
+
+        <div class="content">
+          <p>This is to certify that the above particulars are correct as per our school records.</p>
+        </div>
+
+        <div class="footer">
+          <div>
+            <div class="line">Class Teacher</div>
+          </div>
+          <div>
+            <div class="line">Accountant<br>(No Dues)</div>
+          </div>
+          <div>
+            <div class="line">Principal<br>(Seal)</div>
+          </div>
+        </div>
+      </div>
     </body>
     </html>`;
 

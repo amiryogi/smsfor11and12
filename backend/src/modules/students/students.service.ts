@@ -112,11 +112,14 @@ export class StudentsService {
         firstName: dto.firstName,
         lastName: dto.lastName,
         registrationNo: dto.registrationNo,
-        symbolNo: dto.symbolNo,
         dob: new Date(dto.dob),
+        dobBsYear: dto.dobBsYear,
+        dobBsMonth: dto.dobBsMonth,
+        dobBsDay: dto.dobBsDay,
         gender: dto.gender,
         phone: dto.phone,
         address: dto.address,
+        citizenshipNo: dto.citizenshipNo,
       },
     });
 
