@@ -7,10 +7,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 
 import { AuthGuard } from "./components/auth/AuthGuard";
+import { RoleGuard } from "./components/auth/RoleGuard";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 // Pages
 import { LoginPage } from "./pages/login/LoginPage";
+import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { StudentsListPage } from "./pages/students/StudentsListPage";
 import { StudentCreatePage } from "./pages/students/StudentCreatePage";
@@ -19,10 +21,12 @@ import { StudentEditPage } from "./pages/students/StudentEditPage";
 import { AcademicYearsPage } from "./pages/academic/AcademicYearsPage";
 import { GradesPage } from "./pages/academic/GradesPage";
 import { SubjectsPage } from "./pages/academic/SubjectsPage";
+import { SubjectSelectionPage } from "./pages/academic/SubjectSelectionPage";
 import { ExamsListPage } from "./pages/exams/ExamsListPage";
 import { ExamDetailPage } from "./pages/exams/ExamDetailPage";
 import { MarksEntryPage } from "./pages/exams/MarksEntryPage";
 import { ExamResultsPage } from "./pages/exams/ExamResultsPage";
+import { BoardExamRegistrationPage } from "./pages/exams/BoardExamRegistrationPage";
 import { FeeStructuresPage } from "./pages/finance/FeeStructuresPage";
 import { InvoicesPage } from "./pages/finance/InvoicesPage";
 import { InvoiceDetailPage } from "./pages/finance/InvoiceDetailPage";
@@ -35,6 +39,9 @@ import { UsersPage } from "./pages/users/UsersPage";
 import { SchoolSettingsPage } from "./pages/settings/SchoolSettingsPage";
 import { NotificationsPage } from "./pages/notifications/NotificationsPage";
 import { ProfilePage } from "./pages/profile/ProfilePage";
+import { AttendancePage } from "./pages/attendance/AttendancePage";
+import { TakeAttendancePage } from "./pages/attendance/TakeAttendancePage";
+import { DlqDashboardPage } from "./pages/admin/DlqDashboardPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +57,10 @@ const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  {
+    path: "/forgot-password",
+    element: <ForgotPasswordPage />,
   },
   {
     path: "/",
@@ -70,12 +81,38 @@ const router = createBrowserRouter([
       { path: "academic/years", element: <AcademicYearsPage /> },
       { path: "academic/grades", element: <GradesPage /> },
       { path: "academic/subjects", element: <SubjectsPage /> },
+      {
+        path: "academic/subject-selection",
+        element: (
+          <RoleGuard allowedRoles={["SUPER_ADMIN", "ADMIN", "TEACHER"]}>
+            <SubjectSelectionPage />
+          </RoleGuard>
+        ),
+      },
+      // Attendance
+      { path: "attendance", element: <AttendancePage /> },
+      {
+        path: "attendance/take",
+        element: (
+          <RoleGuard allowedRoles={["SUPER_ADMIN", "ADMIN", "TEACHER"]}>
+            <TakeAttendancePage />
+          </RoleGuard>
+        ),
+      },
       // Exams
       { path: "exams", element: <ExamsListPage /> },
       { path: "exams/:id", element: <ExamDetailPage /> },
       { path: "exams/:id/marks-entry", element: <MarksEntryPage /> },
       { path: "exams/:id/results", element: <ExamResultsPage /> },
       { path: "exams/:examId/report", element: <ExamReportPage /> },
+      {
+        path: "exams/board-registration",
+        element: (
+          <RoleGuard allowedRoles={["SUPER_ADMIN", "ADMIN"]}>
+            <BoardExamRegistrationPage />
+          </RoleGuard>
+        ),
+      },
       // Finance
       { path: "finance/fee-structures", element: <FeeStructuresPage /> },
       { path: "finance/invoices", element: <InvoicesPage /> },
@@ -88,6 +125,14 @@ const router = createBrowserRouter([
       { path: "reports/exam/:examId", element: <ExamReportPage /> },
       // Admin
       { path: "users", element: <UsersPage /> },
+      {
+        path: "admin/queues",
+        element: (
+          <RoleGuard allowedRoles={["SUPER_ADMIN"]}>
+            <DlqDashboardPage />
+          </RoleGuard>
+        ),
+      },
       { path: "settings", element: <SchoolSettingsPage /> },
       { path: "notifications", element: <NotificationsPage /> },
       { path: "profile", element: <ProfilePage /> },

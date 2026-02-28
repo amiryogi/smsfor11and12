@@ -13,6 +13,7 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { PaymentService } from './payment.service.js';
 import { CreatePaymentDto } from './dto/create-payment.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -24,7 +25,7 @@ import { IdempotencyService } from './idempotency.service.js';
 import { Role } from '@prisma/client';
 
 @Controller({ path: 'finance/payments', version: '1' })
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
 export class PaymentController {
   constructor(
     private readonly paymentService: PaymentService,
@@ -33,6 +34,7 @@ export class PaymentController {
 
   @Post()
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Request() req: { user: { schoolId: string } },
@@ -78,6 +80,7 @@ export class PaymentController {
 
   @Post(':id/reverse')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
   reverse(
     @Request() req: { user: { schoolId: string } },

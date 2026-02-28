@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { ReportsService } from './reports.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
@@ -18,7 +19,7 @@ import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import { Role } from '@prisma/client';
 
 @Controller({ path: 'reports', version: '1' })
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
@@ -54,6 +55,7 @@ export class ReportsController {
     Role.PARENT,
     Role.STUDENT,
   )
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(HttpStatus.ACCEPTED)
   generateMarksheet(
     @Request() req: { user: { sub: string; schoolId: string } },
@@ -70,6 +72,7 @@ export class ReportsController {
 
   @Post('exam/:examId/bulk-marksheets')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Throttle({ default: { ttl: 60_000, limit: 3 } })
   @HttpCode(HttpStatus.ACCEPTED)
   bulkMarksheets(
     @Request() req: { user: { sub: string; schoolId: string } },

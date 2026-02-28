@@ -17,6 +17,7 @@ const allMenuItems: MenuItem[] = [
   { key: "users", label: "Users", path: "/users", icon: "👥" },
   { key: "students", label: "Students", path: "/students", icon: "🎓" },
   { key: "academic", label: "Academic", path: "/academic/years", icon: "📅" },
+  { key: "attendance", label: "Attendance", path: "/attendance", icon: "✅" },
   { key: "exams", label: "Exams", path: "/exams", icon: "📝" },
   { key: "finance", label: "Finance", path: "/finance/invoices", icon: "💰" },
   {
@@ -25,6 +26,7 @@ const allMenuItems: MenuItem[] = [
     path: "/reports/finance/ledger",
     icon: "📈",
   },
+  { key: "admin", label: "Queue Admin", path: "/admin/queues", icon: "🔧" },
   { key: "settings", label: "Settings", path: "/settings", icon: "⚙️" },
 ];
 
@@ -40,8 +42,8 @@ export function Sidebar() {
   if (!sidebarOpen) return null;
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
-      <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-6">
+    <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-6 dark:border-gray-700">
         <span className="text-xl font-bold text-primary-600">SMS</span>
         <span className="text-sm text-gray-500">ERP</span>
       </div>
@@ -55,8 +57,8 @@ export function Sidebar() {
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-primary-50 text-primary-700"
-                      : "text-gray-700 hover:bg-gray-100"
+                      ? "bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
+                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                   }`
                 }
               >
@@ -67,8 +69,8 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
-      <div className="border-t border-gray-200 p-4">
-        <p className="truncate text-sm font-medium text-gray-900">
+      <div className="border-t border-gray-200 p-4 dark:border-gray-700">
+        <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
           {user?.firstName} {user?.lastName}
         </p>
         <p className="truncate text-xs text-gray-500">

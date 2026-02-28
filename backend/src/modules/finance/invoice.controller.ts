@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { InvoiceService } from './invoice.service.js';
 import { CreateInvoiceDto } from './dto/create-invoice.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -21,7 +22,7 @@ import { InvoiceQueryDto } from './dto/invoice-query.dto.js';
 import { Role } from '@prisma/client';
 
 @Controller({ path: 'finance/invoices', version: '1' })
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
 
@@ -69,6 +70,7 @@ export class InvoiceController {
 
   @Post('bulk-generate')
   @RequireRoles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(HttpStatus.ACCEPTED)
   bulkGenerate(
     @Request() req: { user: { schoolId: string } },

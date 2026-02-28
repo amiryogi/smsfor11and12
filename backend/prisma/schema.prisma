@@ -32,6 +32,9 @@ model School {
   boardExamRegistrations BoardExamRegistration[]
   attendances            Attendance[]
   studentExamSummaries   StudentExamSummary[]
+  studentSubjectSelections StudentSubjectSelection[]
+  examWeightages         ExamWeightage[]
+  internalAssessments    InternalAssessment[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -109,6 +112,8 @@ model AcademicYear {
   invoices      Invoice[]
   boardExamRegistrations BoardExamRegistration[]
   attendances            Attendance[]
+  studentSubjectSelections StudentSubjectSelection[]
+  examWeightages         ExamWeightage[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -152,6 +157,7 @@ model Grade {
   gradeSubjects GradeSubject[]
   exams         Exam[]
   attendances   Attendance[]
+  examWeightages ExamWeightage[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -207,6 +213,8 @@ model GradeSubject {
   isOptional Boolean @default(false)
 
   examResults ExamResult[]
+  studentSubjectSelections StudentSubjectSelection[]
+  internalAssessments InternalAssessment[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -247,6 +255,8 @@ model Student {
   parents                StudentParent[]
   boardExamRegistrations BoardExamRegistration[]
   attendanceRecords      AttendanceRecord[]
+  studentSubjectSelections StudentSubjectSelection[]
+  internalAssessments    InternalAssessment[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -332,6 +342,7 @@ model Exam {
 
   examResults ExamResult[]
   studentExamSummaries StudentExamSummary[]
+  internalAssessments InternalAssessment[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -419,7 +430,87 @@ model StudentExamSummary {
 }
 
 // ==========================================
-// 💰 FINANCE ENGINE
+// � STUDENT SUBJECT SELECTION
+// ==========================================
+
+model StudentSubjectSelection {
+  id             String       @id @default(uuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id])
+  studentId      String
+  student        Student      @relation(fields: [studentId], references: [id])
+  gradeSubjectId String
+  gradeSubject   GradeSubject @relation(fields: [gradeSubjectId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([studentId, gradeSubjectId, academicYearId])
+  @@index([schoolId, studentId])
+  @@index([schoolId, academicYearId])
+}
+
+// ==========================================
+// ⚖️ EXAM WEIGHTAGE
+// ==========================================
+
+model ExamWeightage {
+  id             String       @id @default(uuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id])
+  examType       ExamType
+  gradeId        String
+  grade          Grade        @relation(fields: [gradeId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  weightPercent  Int          // e.g. 25 for 25%, 75 for 75%
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([schoolId, examType, gradeId, academicYearId])
+  @@index([schoolId, gradeId, academicYearId])
+}
+
+// ==========================================
+// 📊 INTERNAL ASSESSMENT (NEB 25%)
+// ==========================================
+
+model InternalAssessment {
+  id             String       @id @default(uuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id])
+  studentId      String
+  student        Student      @relation(fields: [studentId], references: [id])
+  gradeSubjectId String
+  gradeSubject   GradeSubject @relation(fields: [gradeSubjectId], references: [id])
+  examId         String
+  exam           Exam         @relation(fields: [examId], references: [id])
+
+  projectMarks       Decimal?  @db.Decimal(5, 2)
+  participationMarks Decimal?  @db.Decimal(5, 2)
+  attendanceMarks    Decimal?  @db.Decimal(5, 2)
+  otherMarks         Decimal?  @db.Decimal(5, 2)
+  totalMarks         Decimal   @db.Decimal(5, 2)
+  fullMarks          Int       @default(25)
+  remarks            String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([examId, studentId, gradeSubjectId])
+  @@index([schoolId, examId])
+  @@index([schoolId, studentId])
+}
+
+// ==========================================
+// �💰 FINANCE ENGINE
 // ==========================================
 
 model FeeStructure {

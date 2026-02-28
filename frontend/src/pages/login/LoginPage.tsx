@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useLogin } from "../../hooks/useAuth";
 import { useAuthStore } from "../../stores/auth.store";
 import { FormField } from "../../components/ui/FormField";
@@ -78,6 +78,14 @@ export function LoginPage() {
             >
               {isSubmitting || login.isPending ? "Signing in..." : "Sign In"}
             </button>
+            <div className="text-center">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-primary-600 hover:underline"
+              >
+                Forgot your password?
+              </Link>
+            </div>
           </form>
         </div>
       </div>
