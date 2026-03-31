@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 
 import { AuthGuard } from "./components/auth/AuthGuard";
+import { AuthInitializer } from "./components/auth/AuthInitializer";
 import { RoleGuard } from "./components/auth/RoleGuard";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
@@ -147,7 +148,9 @@ const router = createBrowserRouter([
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <AuthInitializer>
+        <RouterProvider router={router} />
+      </AuthInitializer>
       <Toaster position="top-right" richColors closeButton />
     </QueryClientProvider>
   );
